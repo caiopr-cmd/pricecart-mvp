@@ -104,16 +104,24 @@ function bestAndSecond(prices: Record<StoreKey, number>) {
   return { best: sorted[0], second: sorted[1] };
 }
 
-function buildPlan(items: any[], maxStores: number) {
-  // Start: best store per item
+type PricedItem = {
+  bestStore?: StoreKey;
+  match?: { name?: string };
+};
+
+function buildPlan(items: PricedItem[], maxStores: number) {
   const plan: Record<StoreKey, string[]> = { maxi: [], metro: [], provigo: [], superc: [] };
+
   for (const it of items) {
-    if (!it.bestStore || !it.match?.name) continue;
-    plan[it.bestStore].push(it.match.name);
+    const s = it.bestStore;
+    const name = it.match?.name;
+    if (!s || !name) continue;
+    plan[s].push(name);
   }
 
-  // If within limit, done
   const used = (Object.keys(plan) as StoreKey[]).filter((s) => plan[s].length);
+  
+  // If within limit, done
   if (used.length <= maxStores) return { plan, used };
 
   // Naive compression: keep the cheapest single store overall for overflow items.
