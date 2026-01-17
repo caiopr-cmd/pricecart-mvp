@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingDown, ShoppingCart, AlertCircle, Check, Lock, Crown, ArrowRight, Zap } from 'lucide-react';
 
 // Mock data - replace with real database calls
@@ -60,27 +60,35 @@ export default function ComparePage() {
   const [results, setResults] = useState<ComparisonResult | null>(null);
   const [loading, setLoading] = useState(false);
   
-  // Free tier tracking (in production, this would be in database/localStorage)
-  const [comparisonsThisWeek, setComparisonsThisWeek] = useState(2); // Mock: user has used 2/5
-  const [isPro, setIsPro] = useState(false); // Mock: user subscription status
+  // Free tier tracking: COUNT ITEMS, NOT COMPARISONS
+  const [itemsUsedThisWeek, setItemsUsedThisWeek] = useState(0);
+  const [isPro, setIsPro] = useState(false);
   
-  const FREE_LIMIT = 5;
-  const comparisonsRemaining = FREE_LIMIT - comparisonsThisWeek;
-  const hasHitLimit = comparisonsThisWeek >= FREE_LIMIT && !isPro;
+  const FREE_ITEM_LIMIT = 5;
+  const itemsRemaining = FREE_ITEM_LIMIT - itemsUsedThisWeek;
+  
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedItemsUsed = parseInt(localStorage.getItem('dev_itemsUsed') || '0');
+    const savedProStatus = localStorage.getItem('dev_isPro') === 'true';
+    setItemsUsedThisWeek(savedItemsUsed);
+    setIsPro(savedProStatus);
+  }, []);
 
   const handleCompare = () => {
     if (!input.trim()) return;
+
+    const items = input.toLowerCase().split(',').map(i => i.trim()).filter(Boolean);
     
-    // Check free tier limit
-    if (hasHitLimit) {
+    // Check if user would exceed limit
+    if (!isPro && (itemsUsedThisWeek + items.length) > FREE_ITEM_LIMIT) {
+      // Don't run comparison, show error
       return;
     }
 
     setLoading(true);
     
-    // Simulate API call
     setTimeout(() => {
-      const items = input.toLowerCase().split(',').map(i => i.trim()).filter(Boolean);
       const comparisonData = items.map(item => {
         const matches = MOCK_PRODUCTS[item] || [];
         const sorted = [...matches].sort((a, b) => a.price - b.price);
@@ -114,8 +122,13 @@ export default function ComparePage() {
         itemCount: items.length
       });
       
-      // Increment comparison count
-      setComparisonsThisWeek(prev => prev + 1);
+      // Increment items used count (not comparison count!)
+      if (!isPro) {
+        const newItemsUsed = itemsUsedThisWeek + items.length;
+        setItemsUsedThisWeek(newItemsUsed);
+        localStorage.setItem('dev_itemsUsed', String(newItemsUsed));
+      }
+      
       setLoading(false);
     }, 600);
   };
@@ -123,6 +136,11 @@ export default function ComparePage() {
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') handleCompare();
   };
+
+  // Calculate how many items user is trying to compare
+  const currentItemCount = input.split(',').map(i => i.trim()).filter(Boolean).length;
+  const wouldExceedLimit = !isPro && (itemsUsedThisWeek + currentItemCount) > FREE_ITEM_LIMIT;
+  const canCompare = input.trim() && !wouldExceedLimit;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-green-50">
@@ -146,7 +164,7 @@ export default function ComparePage() {
               <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-full">
                 <Zap className="w-4 h-4 text-blue-600" />
                 <span className="text-sm font-semibold text-blue-900">
-                  {comparisonsRemaining} free comparison{comparisonsRemaining !== 1 ? 's' : ''} remaining this week
+                  {itemsRemaining} free item{itemsRemaining !== 1 ? 's' : ''} remaining this week
                 </span>
               </div>
             )}
@@ -169,12 +187,22 @@ export default function ComparePage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="chicken, eggs, milk, bread..."
-              disabled={hasHitLimit}
+              disabled={itemsUsedThisWeek >= FREE_ITEM_LIMIT && !isPro}
               className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
             
-            {/* Free Tier Limit Hit */}
-            {hasHitLimit ? (
+            {/* Item count warning */}
+            {!isPro && currentItemCount > 0 && (
+              <div className={`text-sm ${wouldExceedLimit ? 'text-red-600' : 'text-gray-600'}`}>
+                {currentItemCount} item{currentItemCount !== 1 ? 's' : ''} to compare
+                {wouldExceedLimit && (
+                  <span className="font-semibold"> - This exceeds your {itemsRemaining} remaining item{itemsRemaining !== 1 ? 's' : ''}!</span>
+                )}
+              </div>
+            )}
+            
+            {/* Exceeded limit state */}
+            {wouldExceedLimit ? (
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
                 <div className="flex items-start gap-4">
                   <div className="bg-white/20 p-3 rounded-xl">
@@ -182,23 +210,32 @@ export default function ComparePage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold mb-2">
-                      You've used all 5 free comparisons this week
+                      You only have {itemsRemaining} free item{itemsRemaining !== 1 ? 's' : ''} left this week
                     </h3>
                     <p className="text-blue-100 mb-4">
-                      Upgrade to PriceCart Pro for unlimited comparisons, price alerts, and more.
+                      You&apos;re trying to compare {currentItemCount} items, but you only have {itemsRemaining} remaining. 
+                      {itemsRemaining > 0 ? ' Remove some items or ' : ' '}Upgrade to PriceCart Pro for unlimited items.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <button className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition flex items-center justify-center gap-2">
+                      <a 
+                        href="/pricing"
+                        className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition flex items-center justify-center gap-2"
+                      >
                         <Crown className="w-5 h-5" />
                         Upgrade to Pro - $6.99/month
                         <ArrowRight className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => setComparisonsThisWeek(0)}
-                        className="bg-white/10 text-white px-6 py-3 rounded-lg font-semibold hover:bg-white/20 transition border-2 border-white/30"
-                      >
-                        Wait until next week
-                      </button>
+                      </a>
+                      {itemsRemaining === 0 && (
+                        <button 
+                          onClick={() => {
+                            setItemsUsedThisWeek(0);
+                            localStorage.setItem('dev_itemsUsed', '0');
+                          }}
+                          className="bg-white/10 text-white px-6 py-3 rounded-lg font-semibold hover:bg-white/20 transition border-2 border-white/30"
+                        >
+                          Wait until next week
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -206,7 +243,7 @@ export default function ComparePage() {
             ) : (
               <button
                 onClick={handleCompare}
-                disabled={!input.trim() || loading}
+                disabled={!canCompare || loading}
                 className="w-full py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition font-semibold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl"
               >
                 {loading ? (
@@ -218,9 +255,9 @@ export default function ComparePage() {
                   <>
                     <TrendingDown className="w-6 h-6" />
                     Compare Prices
-                    {!isPro && comparisonsRemaining <= 2 && (
+                    {!isPro && currentItemCount > 0 && (
                       <span className="ml-2 text-sm opacity-90">
-                        ({comparisonsRemaining} left)
+                        ({itemsRemaining - currentItemCount} items left after)
                       </span>
                     )}
                   </>
@@ -267,15 +304,21 @@ export default function ComparePage() {
                 </p>
                 
                 {/* Pro Upsell in Results */}
-                {!isPro && comparisonsRemaining <= 1 && (
+                {!isPro && itemsRemaining <= 1 && (
                   <div className="bg-white/10 backdrop-blur border-2 border-white/30 rounded-xl p-4 mt-6">
                     <p className="text-sm text-green-50 mb-3">
-                      💡 You're saving ${results.totalSavings} with just {results.itemCount} items. 
-                      Imagine checking your full weekly list!
+                      💡 You&apos;re saving ${results.totalSavings} with just {results.itemCount} items. 
+                      {itemsRemaining === 0 
+                        ? " You've used all 5 free items this week!"
+                        : " You have only 1 item left this week!"
+                      }
                     </p>
-                    <button className="bg-white text-green-600 px-5 py-2 rounded-lg font-semibold hover:bg-green-50 transition text-sm">
-                      Get Unlimited Comparisons - $6.99/month
-                    </button>
+                    <a 
+                      href="/pricing"
+                      className="bg-white text-green-600 px-5 py-2 rounded-lg font-semibold hover:bg-green-50 transition text-sm inline-block"
+                    >
+                      Get Unlimited Items - $6.99/month
+                    </a>
                   </div>
                 )}
               </div>
@@ -411,14 +454,14 @@ export default function ComparePage() {
                     Ready to Save More Every Week?
                   </h2>
                   <p className="text-xl text-blue-100 mb-6">
-                    Join PriceCart Pro and unlock unlimited comparisons, price drop alerts, and shopping list optimization.
+                    Join PriceCart Pro and unlock unlimited items, price drop alerts, and shopping list optimization.
                   </p>
                   
                   <div className="bg-white/10 backdrop-blur border-2 border-white/30 rounded-xl p-6 mb-6">
                     <div className="grid md:grid-cols-3 gap-4 text-center mb-6">
                       <div>
                         <p className="text-3xl font-bold mb-1">Unlimited</p>
-                        <p className="text-sm text-blue-100">Comparisons</p>
+                        <p className="text-sm text-blue-100">Items</p>
                       </div>
                       <div>
                         <p className="text-3xl font-bold mb-1">$50-100</p>
@@ -435,13 +478,19 @@ export default function ComparePage() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <button className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition shadow-xl flex items-center justify-center gap-2">
+                    <a 
+                      href="/pricing"
+                      className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition shadow-xl flex items-center justify-center gap-2"
+                    >
                       Start Free Trial
                       <ArrowRight className="w-5 h-5" />
-                    </button>
-                    <button className="bg-white/10 border-2 border-white/30 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/20 transition">
+                    </a>
+                    <a 
+                      href="/pricing"
+                      className="bg-white/10 border-2 border-white/30 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/20 transition"
+                    >
                       See All Features
-                    </button>
+                    </a>
                   </div>
                   
                   <p className="text-sm text-blue-200 mt-4">
@@ -463,9 +512,9 @@ export default function ComparePage() {
                 ← Compare Different Items
               </button>
               
-              {!isPro && comparisonsRemaining > 0 && (
+              {!isPro && itemsRemaining > 0 && (
                 <p className="text-sm text-gray-600 mt-2">
-                  {comparisonsRemaining} comparison{comparisonsRemaining !== 1 ? 's' : ''} remaining this week
+                  {itemsRemaining} item{itemsRemaining !== 1 ? 's' : ''} remaining this week
                 </p>
               )}
             </div>
