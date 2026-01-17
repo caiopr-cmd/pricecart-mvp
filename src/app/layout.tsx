@@ -4,16 +4,18 @@ import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "PriceCart — Compare grocery prices in Montreal",
-  description:
-    "Compare grocery prices across Montreal. We check Maxi, Metro, Provigo, and Super C so you can shop smarter and save money every week.",
-  icons: [{ rel: "icon", url: "/favicon.svg", type: "image/svg+xml" }],
+  title: "PriceCart - Compare Montreal Grocery Prices",
+  description: "Find the cheapest grocery prices across Maxi, Metro, Provigo, and Super C in Montreal",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
-      <body>
+      <body className="antialiased">
         <Nav />
         {children}
         <Footer />
