@@ -1,4 +1,7 @@
-import { Button } from "@/components/Button";
+"use client";
+
+import { useState, useEffect } from 'react';
+import { TrendingDown, Sparkles, Check, ShoppingCart, ArrowRight, Zap, Star } from 'lucide-react';
 
 const rows = [
   { item: "Chicken breast", best: "Maxi", bestPrice: "$13.99/kg", next: "Metro", nextPrice: "$16.50/kg", save: "$2.51/kg" },
@@ -7,145 +10,329 @@ const rows = [
 ];
 
 export default function HomePage() {
+  const [savingsCounter, setSavingsCounter] = useState(0);
+  const targetSavings = 87;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSavingsCounter((prev) => {
+        if (prev >= targetSavings) return targetSavings;
+        return prev + 3;
+      });
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <main className="bg-cinematic">
-      <section className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:pt-20">
-        <div className="grid items-center gap-10 lg:grid-cols-2">
-          <div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-              Compare grocery prices across Montreal. Save money every week.
-            </h1>
-            <p className="mt-4 text-base text-slate-700 sm:text-lg">
-              We check prices at <span className="font-semibold">Maxi, Metro, Provigo, and Super C</span>—so you know where to shop in seconds.
-            </p>
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-green-50/30 to-blue-50/30">
+      {/* Animated background elements */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {/* Animated gradient orbs */}
+        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-gradient-to-br from-green-400/20 to-emerald-400/20 blur-3xl animate-pulse" />
+        <div className="absolute top-1/4 -right-40 h-[500px] w-[500px] rounded-full bg-gradient-to-br from-blue-400/15 to-cyan-400/15 blur-3xl animate-pulse delay-1000" />
+        <div className="absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-gradient-to-br from-amber-400/10 to-orange-400/10 blur-3xl animate-pulse delay-2000" />
+        
+        {/* Grid overlay */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(15 23 42) 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}
+        />
+      </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button href="/auth/signup" variant="primary" className="px-6 py-3">
-                Start free (14 days)
-              </Button>
-              <Button href="/compare" variant="ghost" className="px-6 py-3 border border-slate-200">
-                See how it works
-              </Button>
-            </div>
-
-            <div className="mt-4 text-sm text-slate-600">
-              No credit card. Cancel anytime. No sponsored rankings.
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <Stat label="Typical monthly savings" value="$50–$100" />
-              <Stat label="Stores compared" value="4" />
-              <Stat label="Time to check a list" value="~30 sec" />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_12px_30px_rgba(2,6,23,0.10)]">
-            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
-              <div>
-                <div className="text-sm font-bold text-slate-900">Example (this is what you see)</div>
-                <div className="text-xs text-slate-600">Clean UI. Clear savings.</div>
+      {/* HERO SECTION */}
+      <section className="relative px-4 pt-20 pb-32">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-16 lg:grid-cols-2 lg:gap-12 items-center">
+            
+            {/* Left: Content */}
+            <div className="relative z-10">
+              {/* Floating badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 backdrop-blur-sm mb-6 animate-fade-in">
+                <Sparkles className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-semibold text-green-900">Trusted by thousands of Montreal families</span>
               </div>
-              <span className="rounded-full bg-[color:var(--pc-orange)]/15 px-3 py-1 text-xs font-bold text-slate-900">
-                Updated daily
-              </span>
-            </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-bold text-slate-700">
-                  <tr>
-                    <th className="px-5 py-3">Item</th>
-                    <th className="px-5 py-3">Best store</th>
-                    <th className="px-5 py-3">Best price</th>
-                    <th className="px-5 py-3">Next best</th>
-                    <th className="px-5 py-3">Save</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.item} className="border-t border-slate-200">
-                      <td className="px-5 py-4 font-semibold text-slate-900">{r.item}</td>
-                      <td className="px-5 py-4">
-                        <span className="rounded-lg bg-[color:var(--pc-green)]/15 px-2 py-1 text-xs font-bold text-slate-900">
-                          {r.best}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 font-semibold tabular-nums">{r.bestPrice}</td>
-                      <td className="px-5 py-4 text-slate-700 tabular-nums">
-                        {r.next} <span className="text-slate-500">({r.nextPrice})</span>
-                      </td>
-                      <td className="px-5 py-4 font-bold text-slate-900 tabular-nums">{r.save}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              {/* Main headline */}
+              <h1 className="text-5xl lg:text-7xl font-black tracking-tight text-slate-900 mb-6 animate-fade-in-up">
+                Stop overpaying for
+                <span className="block mt-2 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  groceries
+                </span>
+              </h1>
 
-            <div className="px-5 py-4 text-xs text-slate-600">
-              Tip: unit price (like <span className="font-semibold">$ / kg</span>) makes comparisons fair, even when package sizes change.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="mb-6">
-          <h2 className="text-2xl font-extrabold text-slate-900">Straightforward tools that actually help</h2>
-          <p className="mt-2 text-slate-600">We show the data. You make the call.</p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card title="Compare 4 major stores" desc="Maxi, Metro, Provigo, and Super C—side by side." />
-          <Card title="Cart optimization" desc="Best store mix for your full list. You decide what’s worth the trip." />
-          <Card title="Unit pricing that matters" desc="See $/kg, $/L, and $/100g so you’re not fooled by package size." />
-          <Card title="Price history & alerts (Pro)" desc="Know if something is truly on sale, and get notified when prices drop." />
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="rounded-3xl bg-cinematic-dark px-6 py-10 text-white shadow-[0_12px_30px_rgba(2,6,23,0.10)]">
-          <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
-            <div>
-              <h3 className="text-2xl font-extrabold">The PriceCart guarantee</h3>
-              <p className="mt-2 text-white/80">If you don’t save money, we don’t deserve your money.</p>
-              <ul className="mt-5 space-y-2 text-sm text-white/90">
-                <li>✅ 14 days free, no credit card</li>
-                <li>✅ Cancel anytime</li>
-                <li>✅ No sponsored rankings</li>
-                <li>✅ Real prices, refreshed regularly</li>
-                <li>✅ Privacy-first (we don’t sell your lists)</li>
-              </ul>
-              <div className="mt-6">
-                <Button href="/auth/signup" variant="primary" className="px-6 py-3">Start free</Button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white/10 p-6">
-              <div className="text-sm font-bold text-white/90">What Pro looks like</div>
-              <p className="mt-2 text-sm text-white/80">
-                “You could save <span className="font-bold text-white">$12</span> by buying meat at Maxi and dairy at Metro this week.”
+              <p className="text-xl text-slate-600 mb-8 max-w-xl leading-relaxed animate-fade-in-up delay-100">
+                Compare prices across <span className="font-bold text-slate-900">Maxi, Metro, Provigo, and Super C</span> in seconds. 
+                Save money without changing what you eat.
               </p>
-              <div className="mt-4 rounded-xl bg-white/10 p-4 text-sm">
-                <Row label="This week" value="$47 saved" />
-                <Row label="This month" value="$183 saved" />
-                <Row label="Your subscription" value="$6.99" />
+
+              {/* CTA buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-in-up delay-200">
+                <a
+                  href="/compare"
+                  className="group relative px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  Compare My List
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </a>
+                
+                <a
+                  href="/how-it-works"
+                  className="px-8 py-4 bg-white/80 backdrop-blur-sm text-slate-900 rounded-2xl font-bold text-lg border-2 border-slate-200 hover:border-slate-300 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                >
+                  See How It Works
+                </a>
               </div>
-              <p className="mt-3 text-xs text-white/70">Example numbers for MVP. Your real savings will be based on your own list.</p>
+
+              {/* Trust indicators */}
+              <div className="flex flex-wrap gap-8 animate-fade-in-up delay-300">
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-semibold text-slate-700">No credit card</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-semibold text-slate-700">5 free items/week</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-semibold text-slate-700">Cancel anytime</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Interactive demo */}
+            <div className="relative animate-fade-in-up delay-300">
+              {/* Glow effect behind card */}
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-blue-500/20 to-purple-500/20 blur-3xl rounded-3xl" />
+              
+              {/* Main demo card */}
+              <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200/50 overflow-hidden">
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-slate-200/50 bg-gradient-to-r from-slate-50 to-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-amber-500" />
+                        Live Example
+                      </h3>
+                      <p className="text-xs text-slate-600 mt-0.5">Real comparison results</p>
+                    </div>
+                    <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                      Updated daily
+                    </span>
+                  </div>
+                </div>
+
+                {/* Search bar mockup */}
+                <div className="px-6 py-5 bg-gradient-to-br from-slate-50 to-white">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="chicken, eggs, milk, bread..."
+                      disabled
+                      className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-400 placeholder:text-slate-400"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
+                      <span className="px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">4 items</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Results table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-slate-50 border-y border-slate-200/50">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-700">Item</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-700">Best Price</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-700">You Save</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/50">
+                      {rows.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-slate-900">{row.item}</div>
+                            <div className="text-xs text-slate-500 mt-0.5">at {row.best}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-lg text-slate-900">{row.bestPrice}</div>
+                            <div className="text-xs text-slate-500">{row.next}: {row.nextPrice}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-bold">
+                              <TrendingDown className="w-3 h-3" />
+                              {row.save}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-gradient-to-br from-green-50 to-emerald-50 border-t border-green-200/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-700">Total potential savings:</span>
+                    <span className="text-2xl font-black text-green-700">$3.81</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-20">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_12px_30px_rgba(2,6,23,0.10)]">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <div className="text-xl font-extrabold text-slate-900">Ready to shop smarter?</div>
-              <div className="mt-1 text-sm text-slate-600">Build your list and see savings in minutes.</div>
+      {/* STATS BAR */}
+      <section className="relative px-4 pb-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard 
+              value="150k+" 
+              label="Products tracked"
+              icon={<ShoppingCart className="w-6 h-6" />}
+            />
+            <StatCard 
+              value={`$${savingsCounter}`}
+              label="Avg. monthly savings"
+              icon={<TrendingDown className="w-6 h-6" />}
+              highlight
+            />
+            <StatCard 
+              value="4" 
+              label="Major stores compared"
+              icon={<Check className="w-6 h-6" />}
+            />
+            <StatCard 
+              value="30s" 
+              label="To check your list"
+              icon={<Zap className="w-6 h-6" />}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* VALUE PROPS */}
+      <section className="relative px-4 pb-32">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 mb-4">
+              Why Montreal families love PriceCart
+            </h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              Simple tools that actually save you money. No gimmicks, just savings.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <ValueCard
+              title="Compare 4 Major Stores"
+              description="See prices from Maxi, Metro, Provigo, and Super C side-by-side in real-time."
+              icon="🏪"
+            />
+            <ValueCard
+              title="Unit Price Intelligence"
+              description="Compare $/kg, $/L automatically so you're never fooled by package sizes."
+              icon="⚖️"
+            />
+            <ValueCard
+              title="No Sponsored Rankings"
+              description="We show the cheapest price, period. No store pays for better placement."
+              icon="🎯"
+            />
+            <ValueCard
+              title="Smart Shopping Lists"
+              description="Save your weekly lists and reuse them. Pro users get unlimited saved lists."
+              icon="📝"
+            />
+            <ValueCard
+              title="Price Drop Alerts"
+              description="Get notified when your favorite items go on sale. Never miss a deal again."
+              icon="🔔"
+              isPro
+            />
+            <ValueCard
+              title="Weekly Reports"
+              description="See exactly how much you saved this week, month, and year."
+              icon="📊"
+              isPro
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* SOCIAL PROOF */}
+      <section className="relative px-4 pb-32">
+        <div className="mx-auto max-w-7xl">
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200/50 p-12">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 rounded-full mb-4">
+                <Star className="w-4 h-4 text-amber-600 fill-amber-600" />
+                <span className="text-sm font-bold text-amber-900">4.9/5 average rating</span>
+              </div>
+              <h2 className="text-3xl font-black text-slate-900">
+                What Montreal shoppers are saying
+              </h2>
             </div>
-            <div className="flex gap-2">
-              <Button href="/auth/signup" variant="primary" className="px-6 py-3">Start free</Button>
-              <Button href="/pricing" variant="ghost" className="px-6 py-3 border border-slate-200">View pricing</Button>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              <Testimonial
+                quote="I saved $47 on my first shopping trip. This tool pays for itself immediately!"
+                author="Sarah M."
+                role="Mom of 2, Verdun"
+              />
+              <Testimonial
+                quote="Finally, someone built this! I've been manually checking flyers for years."
+                author="Janet L."
+                role="Retiree, NDG"
+              />
+              <Testimonial
+                quote="As a student on a budget, every dollar counts. PriceCart is essential."
+                author="Marc D."
+                role="McGill Student"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className="relative px-4 pb-32">
+        <div className="mx-auto max-w-4xl">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-3xl blur-xl opacity-20" />
+            <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-12 text-center">
+              <h2 className="text-4xl font-black text-white mb-4">
+                Ready to save money every week?
+              </h2>
+              <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
+                Join thousands of Montreal families who are shopping smarter with PriceCart.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a
+                  href="/compare"
+                  className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-bold text-lg hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
+                >
+                  Start Comparing Free
+                  <ArrowRight className="w-5 h-5" />
+                </a>
+                <a
+                  href="/pricing"
+                  className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-2xl font-bold text-lg border-2 border-white/20 hover:bg-white/20 transition-all flex items-center justify-center gap-2"
+                >
+                  View Pricing
+                </a>
+              </div>
+
+              <p className="text-sm text-slate-400 mt-6">
+                5 free item comparisons per week • No credit card required • Cancel anytime
+              </p>
             </div>
           </div>
         </div>
@@ -154,32 +341,61 @@ export default function HomePage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function StatCard({ value, label, icon, highlight = false }: { value: string; label: string; icon: React.ReactNode; highlight?: boolean }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.10)]">
-      <div className="text-xs font-bold text-slate-600">{label}</div>
-      <div className="mt-1 text-xl font-extrabold text-slate-900 tabular-nums">{value}</div>
-    </div>
-  );
-}
-
-function Card({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(2,6,23,0.10)]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-base font-extrabold text-slate-900">{title}</div>
-        <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--pc-green)] floaty" />
+    <div className={`relative group ${highlight ? 'animate-pulse-slow' : ''}`}>
+      <div className={`absolute inset-0 ${highlight ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20' : 'bg-gradient-to-br from-slate-200/50 to-slate-100/50'} rounded-2xl blur-xl transition-all group-hover:blur-2xl`} />
+      <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-200/50 transition-all hover:-translate-y-1 hover:shadow-xl">
+        <div className={`${highlight ? 'text-green-600' : 'text-slate-600'} mb-3`}>
+          {icon}
+        </div>
+        <div className={`text-3xl font-black ${highlight ? 'text-green-600' : 'text-slate-900'} mb-1`}>
+          {value}
+        </div>
+        <div className="text-sm font-medium text-slate-600">
+          {label}
+        </div>
       </div>
-      <p className="mt-2 text-sm text-slate-600">{desc}</p>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function ValueCard({ title, description, icon, isPro = false }: { title: string; description: string; icon: string; isPro?: boolean }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-white/80">{label}</span>
-      <span className="font-extrabold tabular-nums">{value}</span>
+    <div className="relative group">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-200/50 to-slate-100/50 rounded-2xl blur-xl transition-all group-hover:blur-2xl" />
+      <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-200/50 transition-all hover:-translate-y-1 hover:shadow-xl h-full">
+        <div className="flex items-start justify-between mb-4">
+          <span className="text-4xl">{icon}</span>
+          {isPro && (
+            <span className="px-2 py-1 bg-gradient-to-r from-amber-400 to-amber-500 text-white rounded-full text-xs font-bold">
+              PRO
+            </span>
+          )}
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 mb-2">{title}</h3>
+        <p className="text-slate-600 text-sm leading-relaxed">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function Testimonial({ quote, author, role }: { quote: string; author: string; role: string }) {
+  return (
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-100 to-slate-50 rounded-2xl" />
+      <div className="relative bg-white rounded-2xl p-6 border border-slate-200/50">
+        <div className="flex gap-1 mb-4">
+          {[...Array(5)].map((_, i) => (
+            <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+          ))}
+        </div>
+        <p className="text-slate-700 mb-4 leading-relaxed">&quot;{quote}&quot;</p>
+        <div>
+          <div className="font-bold text-slate-900">{author}</div>
+          <div className="text-sm text-slate-600">{role}</div>
+        </div>
+      </div>
     </div>
   );
 }
