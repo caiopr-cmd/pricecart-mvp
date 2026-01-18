@@ -9,10 +9,20 @@ const rows = [
   { item: "Greek yogurt", best: "Metro", bestPrice: "$3.99", next: "Provigo", nextPrice: "$4.49", save: "$0.50" },
 ];
 
+const rotatingPhrases = [
+  { text: "groceries", color: "from-green-600 via-emerald-600 to-teal-600" },
+  { text: "your weekly shop", color: "from-blue-600 via-cyan-600 to-teal-600" },
+  { text: "essentials", color: "from-purple-600 via-violet-600 to-indigo-600" },
+  { text: "food costs", color: "from-orange-600 via-amber-600 to-yellow-600" },
+];
+
 export default function HomePage() {
   const [savingsCounter, setSavingsCounter] = useState(0);
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
   const targetSavings = 87;
 
+  // Savings counter animation
   useEffect(() => {
     const interval = setInterval(() => {
       setSavingsCounter((prev) => {
@@ -23,16 +33,28 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Rotating text animation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentPhraseIndex((prev) => (prev + 1) % rotatingPhrases.length);
+        setIsAnimating(false);
+      }, 500);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentPhrase = rotatingPhrases[currentPhraseIndex];
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-green-50/30 to-blue-50/30">
       {/* Animated background elements */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Animated gradient orbs */}
         <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-gradient-to-br from-green-400/20 to-emerald-400/20 blur-3xl animate-pulse" />
-        <div className="absolute top-1/4 -right-40 h-[500px] w-[500px] rounded-full bg-gradient-to-br from-blue-400/15 to-cyan-400/15 blur-3xl animate-pulse delay-1000" />
-        <div className="absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-gradient-to-br from-amber-400/10 to-orange-400/10 blur-3xl animate-pulse delay-2000" />
+        <div className="absolute top-1/4 -right-40 h-[500px] w-[500px] rounded-full bg-gradient-to-br from-blue-400/15 to-cyan-400/15 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-gradient-to-br from-amber-400/10 to-orange-400/10 blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         
-        {/* Grid overlay */}
         <div 
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -50,26 +72,34 @@ export default function HomePage() {
             {/* Left: Content */}
             <div className="relative z-10">
               {/* Floating badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 backdrop-blur-sm mb-6 animate-fade-in">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 backdrop-blur-sm mb-6 opacity-0 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
                 <Sparkles className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-semibold text-green-900">Trusted by thousands of Montreal families</span>
               </div>
 
-              {/* Main headline */}
-              <h1 className="text-5xl lg:text-7xl font-black tracking-tight text-slate-900 mb-6 animate-fade-in-up">
-                Stop overpaying for
-                <span className="block mt-2 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  groceries
+              {/* Main headline with rotating text */}
+              <h1 className="text-5xl lg:text-7xl font-black tracking-tight text-slate-900 mb-6">
+                <span className="block opacity-0 animate-fade-in-up" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
+                  Stop overpaying for
+                </span>
+                <span className="block mt-2 h-[1.2em] relative overflow-hidden">
+                  <span 
+                    className={`absolute inset-0 bg-gradient-to-r ${currentPhrase.color} bg-clip-text text-transparent transition-all duration-500 ${
+                      isAnimating ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
+                    }`}
+                  >
+                    {currentPhrase.text}
+                  </span>
                 </span>
               </h1>
 
-              <p className="text-xl text-slate-600 mb-8 max-w-xl leading-relaxed animate-fade-in-up delay-100">
+              <p className="text-xl text-slate-600 mb-8 max-w-xl leading-relaxed opacity-0 animate-fade-in-up" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
                 Compare prices across <span className="font-bold text-slate-900">Maxi, Metro, Provigo, and Super C</span> in seconds. 
                 Save money without changing what you eat.
               </p>
 
               {/* CTA buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-in-up delay-200">
+              <div className="flex flex-col sm:flex-row gap-4 mb-12 opacity-0 animate-fade-in-up" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
                 <a
                   href="/compare"
                   className="group relative px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
@@ -88,7 +118,7 @@ export default function HomePage() {
               </div>
 
               {/* Trust indicators */}
-              <div className="flex flex-wrap gap-8 animate-fade-in-up delay-300">
+              <div className="flex flex-wrap gap-8 opacity-0 animate-fade-in-up" style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}>
                 <div className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-green-600" />
                   <span className="text-sm font-semibold text-slate-700">No credit card</span>
@@ -105,13 +135,10 @@ export default function HomePage() {
             </div>
 
             {/* Right: Interactive demo */}
-            <div className="relative animate-fade-in-up delay-300">
-              {/* Glow effect behind card */}
+            <div className="relative opacity-0 animate-fade-in-up" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
               <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-blue-500/20 to-purple-500/20 blur-3xl rounded-3xl" />
               
-              {/* Main demo card */}
               <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200/50 overflow-hidden">
-                {/* Header */}
                 <div className="px-6 py-5 border-b border-slate-200/50 bg-gradient-to-r from-slate-50 to-white">
                   <div className="flex items-center justify-between">
                     <div>
@@ -127,7 +154,6 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Search bar mockup */}
                 <div className="px-6 py-5 bg-gradient-to-br from-slate-50 to-white">
                   <div className="relative">
                     <input
@@ -142,7 +168,6 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Results table */}
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -175,7 +200,6 @@ export default function HomePage() {
                   </table>
                 </div>
 
-                {/* Footer */}
                 <div className="px-6 py-4 bg-gradient-to-br from-green-50 to-emerald-50 border-t border-green-200/50">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-700">Total potential savings:</span>
@@ -337,6 +361,36 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out;
+        }
+      `}</style>
     </main>
   );
 }
