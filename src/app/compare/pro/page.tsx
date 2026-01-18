@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { 
   TrendingDown, ShoppingCart, Check, Crown, ArrowRight, 
   Star, Bell, Save, History, Download, Sparkles, BarChart3,
-  Plus, Trash2, Edit2, X, Clock
+  Plus, Trash2, Edit2, X, Clock, MapPin, Zap, Target, Route
 } from 'lucide-react';
 
 // Mock data
@@ -28,10 +28,10 @@ const MOCK_PRODUCTS: { [key: string]: Array<{ store: string; name: string; price
     { store: 'Provigo', name: 'Organic Milk 2L', price: 7.99, unit: '2L', savings: -2.20 }
   ],
   'bread': [
-    { store: 'Super C', name: 'Whole Wheat 675g', price: 2.99, unit: 'loaf', savings: 2.00 },
-    { store: 'Maxi', name: 'Whole Wheat 675g', price: 3.49, unit: 'loaf', savings: 1.50 },
-    { store: 'Metro', name: 'Artisan Whole Grain', price: 4.99, unit: 'loaf', savings: 0 },
-    { store: 'Provigo', name: 'Organic Whole Wheat', price: 5.49, unit: 'loaf', savings: -0.50 }
+    { store: 'Metro', name: 'Whole Wheat 675g', price: 2.49, unit: 'loaf', savings: 0.50 },
+    { store: 'Super C', name: 'Whole Wheat 675g', price: 2.99, unit: 'loaf', savings: 0 },
+    { store: 'Maxi', name: 'Whole Wheat 675g', price: 3.49, unit: 'loaf', savings: -0.50 },
+    { store: 'Provigo', name: 'Organic Whole Wheat', price: 5.49, unit: 'loaf', savings: -3.00 }
   ],
   'ground beef': [
     { store: 'Maxi', name: 'Lean Ground Beef', price: 9.99, unit: 'kg', savings: 1.50 },
@@ -44,6 +44,18 @@ const MOCK_PRODUCTS: { [key: string]: Array<{ store: string; name: string; price
     { store: 'Maxi', name: 'Penne 900g', price: 2.29, unit: 'box', savings: 0.50 },
     { store: 'Metro', name: 'Fusilli 900g', price: 2.79, unit: 'box', savings: 0 },
     { store: 'Provigo', name: 'Organic Pasta 900g', price: 4.99, unit: 'box', savings: -2.20 }
+  ],
+  'bananas': [
+    { store: 'Super C', name: 'Bananas Yellow', price: 0.79, unit: 'lb', savings: 0.30 },
+    { store: 'Maxi', name: 'Fresh Bananas', price: 0.89, unit: 'lb', savings: 0.20 },
+    { store: 'Metro', name: 'Bananas', price: 1.09, unit: 'lb', savings: 0 },
+    { store: 'Provigo', name: 'Organic Bananas', price: 1.49, unit: 'lb', savings: -0.40 }
+  ],
+  'apples': [
+    { store: 'Maxi', name: 'McIntosh Apples', price: 2.99, unit: 'lb', savings: 0.50 },
+    { store: 'Super C', name: 'Red Apples', price: 3.29, unit: 'lb', savings: 0.20 },
+    { store: 'Metro', name: 'Gala Apples', price: 3.49, unit: 'lb', savings: 0 },
+    { store: 'Provigo', name: 'Honeycrisp', price: 4.99, unit: 'lb', savings: -1.50 }
   ]
 };
 
@@ -65,14 +77,111 @@ interface ComparisonResult {
   itemCount: number;
 }
 
+interface ShoppingPlan {
+  stops: Array<{
+    store: string;
+    items: string[];
+    totalItems: number;
+    estimatedSavings: number;
+  }>;
+  totalSavings: number;
+  description: string;
+}
+
 export default function ProComparePage() {
   const [input, setInput] = useState('');
   const [results, setResults] = useState<ComparisonResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'1-stop' | '2-stop' | '3-stop'>('1-stop');
   const [totalComparisonsThisMonth, setTotalComparisonsThisMonth] = useState(47);
   const [totalSavingsThisMonth, setTotalSavingsThisMonth] = useState(183.45);
+
+  // Generate shopping plans
+  const generateShoppingPlans = (comparisonData: any[]): { oneStop: ShoppingPlan; twoStop: ShoppingPlan; threeStop: ShoppingPlan } => {
+    // Count best prices per store
+    const storeCounts: { [key: string]: { count: number; items: string[]; savings: number } } = {};
+    
+    comparisonData.forEach(item => {
+      if (item.best) {
+        if (!storeCounts[item.best.store]) {
+          storeCounts[item.best.store] = { count: 0, items: [], savings: 0 };
+        }
+        storeCounts[item.best.store].count++;
+        storeCounts[item.best.store].items.push(item.item);
+        storeCounts[item.best.store].savings += item.best.savings;
+      }
+    });
+
+    // Get store keys and handle empty case
+    const storeKeys = Object.keys(storeCounts);
+    
+    // 1-Stop Plan: Store with most best prices
+    const bestStore = storeKeys.length > 0 
+      ? storeKeys.reduce((a, b) => storeCounts[a].count > storeCounts[b].count ? a : b)
+      : 'Maxi'; // Default fallback
+
+    const oneStopItems = comparisonData.map(item => item.item);
+    const oneStopSavings = comparisonData.reduce((sum, item) => {
+      const itemAtStore = item.allPrices?.find((p: any) => p.store === bestStore);
+      return sum + (itemAtStore ? itemAtStore.savings : 0);
+    }, 0);
+
+    // 2-Stop Plan: Best store + highest savings store for remaining items
+    const sortedStores = Object.entries(storeCounts)
+      .sort(([, a], [, b]) => b.count - a.count);
+    
+    const secondBestStore = sortedStores[1]?.[0] || sortedStores[0]?.[0] || 'Super C';
+    const twoStopSavings = comparisonData.reduce((sum, item) => 
+      sum + (item.best?.savings || 0), 0
+    );
+
+    // 3-Stop Plan: Optimize for maximum savings
+    const thirdStore = sortedStores[2]?.[0] || sortedStores[1]?.[0];
+    const threeStopStores = [bestStore, secondBestStore, thirdStore].filter(Boolean);
+
+    return {
+      oneStop: {
+        stops: [{
+          store: bestStore,
+          items: oneStopItems,
+          totalItems: oneStopItems.length,
+          estimatedSavings: oneStopSavings
+        }],
+        totalSavings: oneStopSavings,
+        description: `Get everything at ${bestStore}. It has the best prices or close matches on most items, making it your most convenient single-stop option.`
+      },
+      twoStop: {
+        stops: [
+          {
+            store: bestStore,
+            items: storeCounts[bestStore]?.items || [],
+            totalItems: storeCounts[bestStore]?.count || 0,
+            estimatedSavings: storeCounts[bestStore]?.savings || 0
+          },
+          {
+            store: secondBestStore,
+            items: storeCounts[secondBestStore]?.items || [],
+            totalItems: storeCounts[secondBestStore]?.count || 0,
+            estimatedSavings: storeCounts[secondBestStore]?.savings || 0
+          }
+        ],
+        totalSavings: twoStopSavings,
+        description: `Split between ${bestStore} for the bulk of your list and ${secondBestStore} for the items where they have significantly better prices. This hits the biggest savings without overcomplicating your trip.`
+      },
+      threeStop: {
+        stops: threeStopStores.map(store => ({
+          store,
+          items: storeCounts[store]?.items || [],
+          totalItems: storeCounts[store]?.count || 0,
+          estimatedSavings: storeCounts[store]?.savings || 0
+        })),
+        totalSavings: twoStopSavings,
+        description: `For maximum savings, visit all three stores where you have the absolute best prices. Only worth it if these stores are conveniently located near each other or on your usual route.`
+      }
+    };
+  };
 
   const handleCompare = () => {
     if (!input.trim()) return;
@@ -120,8 +229,8 @@ export default function ProComparePage() {
     }, 600);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleCompare();
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && e.ctrlKey) handleCompare();
   };
 
   const loadSavedList = (items: string) => {
@@ -139,6 +248,9 @@ export default function ProComparePage() {
     a.download = 'pricecart-comparison.json';
     a.click();
   };
+
+  const plans = results ? generateShoppingPlans(results.items) : null;
+  const currentPlan = plans ? plans[selectedPlan === '1-stop' ? 'oneStop' : selectedPlan === '2-stop' ? 'twoStop' : 'threeStop'] : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-blue-50">
@@ -257,13 +369,14 @@ export default function ProComparePage() {
               </div>
               
               <p className="text-sm text-gray-600 mb-4">
-                Enter items separated by commas • Pro: Unlimited comparisons
+                Enter items separated by commas • Pro: Unlimited comparisons • Press Ctrl+Enter to compare
               </p>
               
               <div className="space-y-4">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
                   placeholder="chicken breast, eggs, 2% milk, whole wheat bread, ground beef, pasta..."
                   rows={3}
                   className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition resize-none"
@@ -333,13 +446,13 @@ export default function ProComparePage() {
             </div>
 
             {/* Results Section */}
-            {results && (
+            {results && plans && currentPlan && (
               <>
                 {/* Enhanced Savings Card */}
                 <div className="bg-gradient-to-br from-green-600 via-green-700 to-emerald-700 rounded-2xl shadow-2xl p-8 mb-6 text-white">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <p className="text-green-100 text-lg mb-2">You could save</p>
+                      <p className="text-green-100 text-lg mb-2">Potential savings</p>
                       <p className="text-6xl md:text-7xl font-bold">
                         ${results.totalSavings}
                       </p>
@@ -359,7 +472,7 @@ export default function ProComparePage() {
 
                   <div className="grid md:grid-cols-3 gap-4">
                     <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                      <p className="text-green-100 text-sm mb-1">Best Store</p>
+                      <p className="text-green-100 text-sm mb-1">Best Single Store</p>
                       <p className="text-2xl font-bold">{results.topStore}</p>
                     </div>
                     <div className="bg-white/10 backdrop-blur rounded-xl p-4">
@@ -373,66 +486,149 @@ export default function ProComparePage() {
                   </div>
                 </div>
 
-                {/* Where to Shop */}
+                {/* Smart Shopping Plans */}
                 <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                      <Check className="w-6 h-6 text-green-600" />
-                      Shopping Recommendations
-                    </h2>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-semibold">
-                      <Bell className="w-4 h-4" />
-                      Set Alerts
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                      <Route className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Smart Shopping Plans
+                      </h2>
+                      <p className="text-gray-600">Choose your strategy based on time vs. savings</p>
+                    </div>
+                  </div>
+
+                  {/* Plan Selector */}
+                  <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
+                    <button
+                      onClick={() => setSelectedPlan('1-stop')}
+                      className={`flex-1 min-w-[200px] p-4 rounded-xl border-2 transition ${
+                        selectedPlan === '1-stop'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Target className={`w-5 h-5 ${selectedPlan === '1-stop' ? 'text-blue-600' : 'text-gray-600'}`} />
+                        <h3 className={`font-bold ${selectedPlan === '1-stop' ? 'text-blue-900' : 'text-gray-900'}`}>
+                          1-Stop Shop
+                        </h3>
+                      </div>
+                      <p className="text-sm text-gray-600">Most convenient</p>
+                      <p className="text-xs text-gray-500 mt-1">Save: ${plans.oneStop.totalSavings.toFixed(2)}</p>
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedPlan('2-stop')}
+                      className={`flex-1 min-w-[200px] p-4 rounded-xl border-2 transition ${
+                        selectedPlan === '2-stop'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Zap className={`w-5 h-5 ${selectedPlan === '2-stop' ? 'text-green-600' : 'text-gray-600'}`} />
+                        <h3 className={`font-bold ${selectedPlan === '2-stop' ? 'text-green-900' : 'text-gray-900'}`}>
+                          2-Stop Plan
+                        </h3>
+                      </div>
+                      <p className="text-sm text-gray-600">Best balance</p>
+                      <p className="text-xs text-green-700 font-semibold mt-1">Save: ${plans.twoStop.totalSavings.toFixed(2)} ⭐ Recommended</p>
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedPlan('3-stop')}
+                      className={`flex-1 min-w-[200px] p-4 rounded-xl border-2 transition ${
+                        selectedPlan === '3-stop'
+                          ? 'border-purple-500 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Crown className={`w-5 h-5 ${selectedPlan === '3-stop' ? 'text-purple-600' : 'text-gray-600'}`} />
+                        <h3 className={`font-bold ${selectedPlan === '3-stop' ? 'text-purple-900' : 'text-gray-900'}`}>
+                          3-Stop Max Savings
+                        </h3>
+                      </div>
+                      <p className="text-sm text-gray-600">Maximum savings</p>
+                      <p className="text-xs text-gray-500 mt-1">Save: ${plans.threeStop.totalSavings.toFixed(2)}</p>
                     </button>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {results.items.map((item, idx) => (
-                      item.found && item.best && (
-                        <div key={idx} className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="font-bold text-gray-900 capitalize text-lg mb-1">
-                                {item.item}
-                              </p>
-                              <p className="text-sm text-gray-600 mb-2">
-                                {item.best.name}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                                  BEST: {item.best.store}
-                                </span>
-                                {item.best.savings > 0 && (
-                                  <span className="text-xs text-green-700 font-semibold">
-                                    Save ${item.best.savings.toFixed(2)}
-                                  </span>
-                                )}
+                  {/* Plan Details */}
+                  <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 mb-6">
+                    <p className="text-gray-700 leading-relaxed mb-4">
+                      {currentPlan.description}
+                    </p>
+
+                    <div className="space-y-4">
+                      {currentPlan.stops.map((stop, idx) => (
+                        <div key={idx} className="bg-white rounded-lg p-5 border-2 border-slate-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-lg text-gray-900">{stop.store}</h4>
+                                <p className="text-sm text-gray-600">{stop.totalItems} items • Est. save ${stop.estimatedSavings.toFixed(2)}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-green-700">
-                                ${item.best.price.toFixed(2)}
-                              </p>
-                              <p className="text-sm text-gray-600">/{item.best.unit}</p>
-                            </div>
+                            <MapPin className="w-5 h-5 text-gray-400" />
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            {stop.items.map((item, itemIdx) => (
+                              <span
+                                key={itemIdx}
+                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium capitalize"
+                              >
+                                {item}
+                              </span>
+                            ))}
                           </div>
                         </div>
-                      )
-                    ))}
+                      ))}
+                    </div>
+
+                    {selectedPlan === '2-stop' && (
+                      <div className="mt-4 p-4 bg-green-100 border-2 border-green-300 rounded-lg">
+                        <p className="text-sm text-green-800 font-semibold flex items-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          💡 Pro Tip: This plan gives you the best savings-to-effort ratio. You'll hit the biggest price differences without making your shopping trip too complicated.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Detailed Comparison */}
+                {/* Detailed Price Breakdown */}
                 <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    Full Price Breakdown
-                  </h2>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Full Price Breakdown
+                    </h2>
+                    <button 
+                      onClick={() => setShowAlertsModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-semibold"
+                    >
+                      <Bell className="w-4 h-4" />
+                      Set Price Alerts
+                    </button>
+                  </div>
 
                   {results.items.map((item, idx) => (
                     item.found && (
                       <div key={idx} className="mb-6 last:mb-0 pb-6 last:pb-0 border-b last:border-0">
-                        <h3 className="text-lg font-bold text-gray-900 mb-3 capitalize">
-                          {item.item}
+                        <h3 className="text-lg font-bold text-gray-900 mb-3 capitalize flex items-center justify-between">
+                          <span>{item.item}</span>
+                          {item.best && item.best.savings > 0.50 && (
+                            <span className="text-sm bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-semibold">
+                              Great Deal! 🔥
+                            </span>
+                          )}
                         </h3>
                         <div className="space-y-2">
                           {item.allPrices.map((product, pIdx) => {
@@ -440,8 +636,10 @@ export default function ProComparePage() {
                             return (
                               <div
                                 key={pIdx}
-                                className={`flex items-center justify-between p-4 rounded-lg ${
-                                  isBest ? 'bg-green-100 border-2 border-green-300' : 'bg-gray-50'
+                                className={`flex items-center justify-between p-4 rounded-lg transition ${
+                                  isBest 
+                                    ? 'bg-green-100 border-2 border-green-300' 
+                                    : 'bg-gray-50 hover:bg-gray-100'
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
@@ -458,6 +656,11 @@ export default function ProComparePage() {
                                     ${product.price.toFixed(2)}
                                   </p>
                                   <p className="text-sm text-gray-600">per {product.unit}</p>
+                                  {product.savings > 0 && !isBest && (
+                                    <p className="text-xs text-red-600 mt-1">
+                                      +${product.savings.toFixed(2)} vs best
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             );
