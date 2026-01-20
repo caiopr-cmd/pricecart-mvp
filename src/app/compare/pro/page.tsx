@@ -104,7 +104,8 @@ export default function ProComparePage() {
       return Object.entries(storeGroups).map(([store, storeItems]) => ({
         store,
         items: storeItems,
-        savings: (storeItems as any[]).reduce((sum, item) => sum + (item.best?.savings || 0), 0)
+        savings: (storeItems as any[]).reduce((sum, item) => sum + (item.best?.savings || 0), 0),
+        isOneStop: false
       }));
     } 
     
@@ -149,7 +150,8 @@ export default function ProComparePage() {
       return sortedStores.map(([store, storeItems]) => ({
         store,
         items: storeItems,
-        savings: (storeItems as any[]).reduce((sum, item) => sum + (item.best?.savings || 0), 0)
+        savings: (storeItems as any[]).reduce((sum, item) => sum + (item.best?.savings || 0), 0),
+        isOneStop: false
       }));
     }
     
