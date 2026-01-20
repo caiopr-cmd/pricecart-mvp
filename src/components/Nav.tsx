@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ShoppingCart, Crown, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -16,6 +16,7 @@ const navLinks = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // DEV MODE: Mock auth state (stored in localStorage for testing)
@@ -30,6 +31,20 @@ export default function Navigation() {
     setIsLoggedIn(savedLoginStatus);
   }, []);
 
+  // Redirect Pro users away from home and free compare
+  useEffect(() => {
+    if (isPro) {
+      // Redirect from home page to Pro dashboard
+      if (pathname === '/') {
+        router.push('/compare/pro');
+      }
+      // Redirect from free compare to Pro dashboard
+      if (pathname === '/compare') {
+        router.push('/compare/pro');
+      }
+    }
+  }, [isPro, pathname, router]);
+
   // Toggle Pro status (for testing)
   const toggleProStatus = () => {
     const newProStatus = !isPro;
@@ -38,6 +53,8 @@ export default function Navigation() {
     if (newProStatus) {
       setIsLoggedIn(true);
       localStorage.setItem('dev_isLoggedIn', 'true');
+      // Immediately redirect to Pro dashboard when upgrading
+      router.push('/compare/pro');
     }
   };
 
@@ -49,8 +66,18 @@ export default function Navigation() {
     if (!newLoginStatus) {
       setIsPro(false);
       localStorage.setItem('dev_isPro', 'false');
+      // Redirect to home when logging out
+      router.push('/');
     }
   };
+
+  // Filter nav links for Pro users - hide Compare link
+  const visibleNavLinks = navLinks.filter(link => {
+    if (isPro && link.href === '/compare') {
+      return false; // Hide free compare for Pro users
+    }
+    return true;
+  });
 
   return (
     <div>
@@ -75,22 +102,25 @@ export default function Navigation() {
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           
-          {/* Logo */}
-<Link href="/" className="flex items-center gap-2 hover:opacity-80 transition">
-  <Image 
-    src="/PriceCart Logo 1.svg" 
-    alt="PriceCart Logo" 
-    width={140} 
-    height={40}
-    className="h-10 w-auto"
-    priority
-  />
-  {isPro && (
-    <span className="bg-gradient-to-r from-amber-400 to-amber-600 text-white px-2 py-0.5 rounded text-xs font-bold">
-      PRO
-    </span>
-  )}
-</Link>
+          {/* Logo - Pro users go to dashboard instead of home */}
+          <Link 
+            href={isPro ? "/compare/pro" : "/"} 
+            className="flex items-center gap-2 hover:opacity-80 transition"
+          >
+            <Image 
+              src="/PriceCart Logo 1.svg" 
+              alt="PriceCart Logo" 
+              width={140} 
+              height={40}
+              className="h-10 w-auto"
+              priority
+            />
+            {isPro && (
+              <span className="bg-gradient-to-r from-amber-400 to-amber-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                PRO
+              </span>
+            )}
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-700 md:flex">
@@ -109,8 +139,8 @@ export default function Navigation() {
               </Link>
             )}
             
-            {/* Regular nav links */}
-            {navLinks.map((link) => (
+            {/* Regular nav links - filtered for Pro users */}
+            {visibleNavLinks.map((link) => (
               <Link 
                 key={link.href} 
                 href={link.href}
@@ -193,8 +223,8 @@ export default function Navigation() {
                 </Link>
               )}
 
-              {/* Regular nav links */}
-              {navLinks.map((link) => (
+              {/* Regular nav links - filtered for Pro users */}
+              {visibleNavLinks.map((link) => (
                 <Link 
                   key={link.href}
                   href={link.href}
