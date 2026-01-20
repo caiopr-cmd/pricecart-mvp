@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { 
   TrendingDown, ShoppingCart, Check, Crown, ArrowRight, 
   Star, Bell, Save, History, Download, Sparkles, BarChart3,
-  Plus, Trash2, Edit2, X, Clock, MapPin, Zap, Target, Route
+  Plus, Trash2, X, Clock, MapPin, Zap, Target, Route,
+  Wallet, ChevronRight, Filter, Search, Share2, ArrowUpDown
 } from 'lucide-react';
 
 // Mock data
@@ -32,160 +33,24 @@ const MOCK_PRODUCTS: { [key: string]: Array<{ store: string; name: string; price
     { store: 'Super C', name: 'Whole Wheat 675g', price: 2.99, unit: 'loaf', savings: 0 },
     { store: 'Maxi', name: 'Whole Wheat 675g', price: 3.49, unit: 'loaf', savings: -0.50 },
     { store: 'Provigo', name: 'Organic Whole Wheat', price: 5.49, unit: 'loaf', savings: -3.00 }
-  ],
-  'ground beef': [
-    { store: 'Maxi', name: 'Lean Ground Beef', price: 9.99, unit: 'kg', savings: 1.50 },
-    { store: 'Super C', name: 'Ground Beef Medium', price: 10.49, unit: 'kg', savings: 1.00 },
-    { store: 'Metro', name: 'Ground Beef Lean', price: 11.49, unit: 'kg', savings: 0 },
-    { store: 'Provigo', name: 'Organic Ground Beef', price: 13.99, unit: 'kg', savings: -2.50 }
-  ],
-  'pasta': [
-    { store: 'Super C', name: 'Spaghetti 900g', price: 1.99, unit: 'box', savings: 0.80 },
-    { store: 'Maxi', name: 'Penne 900g', price: 2.29, unit: 'box', savings: 0.50 },
-    { store: 'Metro', name: 'Fusilli 900g', price: 2.79, unit: 'box', savings: 0 },
-    { store: 'Provigo', name: 'Organic Pasta 900g', price: 4.99, unit: 'box', savings: -2.20 }
-  ],
-  'bananas': [
-    { store: 'Super C', name: 'Bananas Yellow', price: 0.79, unit: 'lb', savings: 0.30 },
-    { store: 'Maxi', name: 'Fresh Bananas', price: 0.89, unit: 'lb', savings: 0.20 },
-    { store: 'Metro', name: 'Bananas', price: 1.09, unit: 'lb', savings: 0 },
-    { store: 'Provigo', name: 'Organic Bananas', price: 1.49, unit: 'lb', savings: -0.40 }
-  ],
-  'apples': [
-    { store: 'Maxi', name: 'McIntosh Apples', price: 2.99, unit: 'lb', savings: 0.50 },
-    { store: 'Super C', name: 'Red Apples', price: 3.29, unit: 'lb', savings: 0.20 },
-    { store: 'Metro', name: 'Gala Apples', price: 3.49, unit: 'lb', savings: 0 },
-    { store: 'Provigo', name: 'Honeycrisp', price: 4.99, unit: 'lb', savings: -1.50 }
   ]
 };
 
 const SAVED_LISTS = [
-  { id: 1, name: 'Weekly Groceries', items: 'chicken, eggs, milk, bread', lastUsed: '2 days ago' },
-  { id: 2, name: 'Meal Prep Sunday', items: 'ground beef, pasta, chicken, eggs', lastUsed: '1 week ago' },
-  { id: 3, name: 'Quick Staples', items: 'milk, bread, eggs', lastUsed: '3 days ago' }
+  { id: 1, name: 'Weekly Staples', items: 'chicken, eggs, milk, bread', lastUsed: '2 days ago', itemCount: 12 },
+  { id: 2, name: 'Meal Prep', items: 'chicken, eggs', lastUsed: '1 week ago', itemCount: 8 },
+  { id: 3, name: 'Quick Run', items: 'milk, bread', lastUsed: '3 days ago', itemCount: 5 }
 ];
-
-interface ComparisonResult {
-  items: Array<{
-    item: string;
-    found: boolean;
-    best?: { store: string; name: string; price: number; unit: string; savings: number };
-    allPrices: Array<{ store: string; name: string; price: number; unit: string; savings: number }>;
-  }>;
-  totalSavings: string;
-  topStore: string;
-  itemCount: number;
-}
-
-interface ShoppingPlan {
-  stops: Array<{
-    store: string;
-    items: string[];
-    totalItems: number;
-    estimatedSavings: number;
-  }>;
-  totalSavings: number;
-  description: string;
-}
 
 export default function ProComparePage() {
   const [input, setInput] = useState('');
-  const [results, setResults] = useState<ComparisonResult | null>(null);
+  const [results, setResults] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showAlertsModal, setShowAlertsModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<'1-stop' | '2-stop' | '3-stop'>('1-stop');
-  const [totalComparisonsThisMonth, setTotalComparisonsThisMonth] = useState(47);
-  const [totalSavingsThisMonth, setTotalSavingsThisMonth] = useState(183.45);
-
-  // Generate shopping plans
-  const generateShoppingPlans = (comparisonData: any[]): { oneStop: ShoppingPlan; twoStop: ShoppingPlan; threeStop: ShoppingPlan } => {
-    // Count best prices per store
-    const storeCounts: { [key: string]: { count: number; items: string[]; savings: number } } = {};
-    
-    comparisonData.forEach(item => {
-      if (item.best) {
-        if (!storeCounts[item.best.store]) {
-          storeCounts[item.best.store] = { count: 0, items: [], savings: 0 };
-        }
-        storeCounts[item.best.store].count++;
-        storeCounts[item.best.store].items.push(item.item);
-        storeCounts[item.best.store].savings += item.best.savings;
-      }
-    });
-
-    // Get store keys and handle empty case
-    const storeKeys = Object.keys(storeCounts);
-    
-    // 1-Stop Plan: Store with most best prices
-    const bestStore = storeKeys.length > 0 
-      ? storeKeys.reduce((a, b) => storeCounts[a].count > storeCounts[b].count ? a : b)
-      : 'Maxi'; // Default fallback
-
-    const oneStopItems = comparisonData.map(item => item.item);
-    const oneStopSavings = comparisonData.reduce((sum, item) => {
-      const itemAtStore = item.allPrices?.find((p: any) => p.store === bestStore);
-      return sum + (itemAtStore ? itemAtStore.savings : 0);
-    }, 0);
-
-    // 2-Stop Plan: Best store + highest savings store for remaining items
-    const sortedStores = Object.entries(storeCounts)
-      .sort(([, a], [, b]) => b.count - a.count);
-    
-    const secondBestStore = sortedStores[1]?.[0] || sortedStores[0]?.[0] || 'Super C';
-    const twoStopSavings = comparisonData.reduce((sum, item) => 
-      sum + (item.best?.savings || 0), 0
-    );
-
-    // 3-Stop Plan: Optimize for maximum savings
-    const thirdStore = sortedStores[2]?.[0] || sortedStores[1]?.[0];
-    const threeStopStores = [bestStore, secondBestStore, thirdStore].filter(Boolean);
-
-    return {
-      oneStop: {
-        stops: [{
-          store: bestStore,
-          items: oneStopItems,
-          totalItems: oneStopItems.length,
-          estimatedSavings: oneStopSavings
-        }],
-        totalSavings: oneStopSavings,
-        description: `Get everything at ${bestStore}. It has the best prices or close matches on most items, making it your most convenient single-stop option.`
-      },
-      twoStop: {
-        stops: [
-          {
-            store: bestStore,
-            items: storeCounts[bestStore]?.items || [],
-            totalItems: storeCounts[bestStore]?.count || 0,
-            estimatedSavings: storeCounts[bestStore]?.savings || 0
-          },
-          {
-            store: secondBestStore,
-            items: storeCounts[secondBestStore]?.items || [],
-            totalItems: storeCounts[secondBestStore]?.count || 0,
-            estimatedSavings: storeCounts[secondBestStore]?.savings || 0
-          }
-        ],
-        totalSavings: twoStopSavings,
-        description: `Split between ${bestStore} for the bulk of your list and ${secondBestStore} for the items where they have significantly better prices. This hits the biggest savings without overcomplicating your trip.`
-      },
-      threeStop: {
-        stops: threeStopStores.map(store => ({
-          store,
-          items: storeCounts[store]?.items || [],
-          totalItems: storeCounts[store]?.count || 0,
-          estimatedSavings: storeCounts[store]?.savings || 0
-        })),
-        totalSavings: twoStopSavings,
-        description: `For maximum savings, visit all three stores where you have the absolute best prices. Only worth it if these stores are conveniently located near each other or on your usual route.`
-      }
-    };
-  };
+  const [selectedStrategy, setSelectedStrategy] = useState<'cheapest' | 'one-stop' | 'two-stop'>('cheapest');
+  const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
 
   const handleCompare = () => {
     if (!input.trim()) return;
-
     setLoading(true);
     
     setTimeout(() => {
@@ -205,546 +70,602 @@ export default function ProComparePage() {
         sum + (item.best?.savings || 0), 0
       );
 
-      const storeCounts: { [key: string]: number } = {};
+      // Group items by best store
+      const storeGroups: { [key: string]: any[] } = {};
       comparisonData.forEach(item => {
         if (item.best) {
-          storeCounts[item.best.store] = (storeCounts[item.best.store] || 0) + 1;
+          if (!storeGroups[item.best.store]) {
+            storeGroups[item.best.store] = [];
+          }
+          storeGroups[item.best.store].push(item);
         }
       });
-
-      const topStore = Object.keys(storeCounts).reduce((a, b) => 
-        storeCounts[a] > storeCounts[b] ? a : b, ''
-      );
 
       setResults({
         items: comparisonData,
         totalSavings: totalSavings.toFixed(2),
-        topStore,
-        itemCount: items.length
+        itemCount: items.length,
+        storeGroups
       });
       
-      setTotalComparisonsThisMonth(prev => prev + 1);
-      setTotalSavingsThisMonth(prev => prev + parseFloat(totalSavings.toFixed(2)));
       setLoading(false);
-    }, 600);
+      setShowPriceBreakdown(false);
+    }, 800);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && e.ctrlKey) handleCompare();
+  // Calculate shopping plan based on selected strategy
+  const getShoppingPlan = () => {
+    if (!results) return null;
+
+    const { items, storeGroups } = results;
+    
+    if (selectedStrategy === 'cheapest') {
+      // Cheapest: Buy each item at its cheapest store
+      return Object.entries(storeGroups).map(([store, storeItems]) => ({
+        store,
+        items: storeItems,
+        savings: (storeItems as any[]).reduce((sum, item) => sum + (item.best?.savings || 0), 0)
+      }));
+    } 
+    
+    if (selectedStrategy === 'one-stop') {
+      // One-stop: Find the store with most items, buy everything there
+      const storeCounts = Object.entries(storeGroups).map(([store, items]) => ({
+        store,
+        count: (items as any[]).length
+      }));
+      const bestStore = storeCounts.reduce((best, current) => 
+        current.count > best.count ? current : best
+      );
+      
+      // Calculate savings when buying ALL items at this one store
+      const allItemsAtStore = items.map((item: any) => {
+        const itemAtStore = item.allPrices?.find((p: any) => p.store === bestStore.store);
+        return {
+          ...item,
+          priceAtStore: itemAtStore?.price || item.best?.price,
+          savingsAtStore: itemAtStore ? (item.best.price - itemAtStore.price) : 0
+        };
+      });
+      
+      const totalSavingsOneStop = allItemsAtStore.reduce((sum: number, item: any) => 
+        sum + item.savingsAtStore, 0
+      );
+      
+      return [{
+        store: bestStore.store,
+        items: allItemsAtStore,
+        savings: totalSavingsOneStop,
+        isOneStop: true
+      }];
+    }
+    
+    if (selectedStrategy === 'two-stop') {
+      // Two-stop: Top 2 stores by item count
+      const sortedStores = Object.entries(storeGroups)
+        .sort(([, a], [, b]) => (b as any[]).length - (a as any[]).length)
+        .slice(0, 2);
+      
+      return sortedStores.map(([store, storeItems]) => ({
+        store,
+        items: storeItems,
+        savings: (storeItems as any[]).reduce((sum, item) => sum + (item.best?.savings || 0), 0)
+      }));
+    }
+    
+    return [];
   };
 
-  const loadSavedList = (items: string) => {
-    setInput(items);
-    setResults(null);
-  };
+  const shoppingPlan = getShoppingPlan();
+  const planTotalSavings = shoppingPlan?.reduce((sum, stop) => sum + stop.savings, 0) || 0;
 
-  const exportResults = () => {
-    if (!results) return;
-    const data = JSON.stringify(results, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'pricecart-comparison.json';
-    a.click();
-  };
-
-  const plans = results ? generateShoppingPlans(results.items) : null;
-  const currentPlan = plans ? plans[selectedPlan === '1-stop' ? 'oneStop' : selectedPlan === '2-stop' ? 'twoStop' : 'threeStop'] : null;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-blue-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        
-        {/* Pro Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+  // INITIAL STATE - Centered, prominent input
+  if (!results) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/20 to-indigo-50/20 py-12">
+        <main className="max-w-5xl mx-auto px-6">
+          
+          {/* Pro Status Banner */}
+          <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl">
-                <Crown className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-200 rounded-full">
+                <Crown className="w-5 h-5 text-amber-700" />
+                <span className="text-sm font-black text-amber-900 uppercase tracking-wide">Pro Member</span>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                  PriceCart Pro
-                  <span className="text-lg bg-gradient-to-r from-amber-400 to-amber-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                    UNLIMITED
-                  </span>
-                </h1>
-                <p className="text-gray-600">Compare unlimited items, save more every week</p>
+              <div className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-900">Montreal North</span> • 4 chains monitored
               </div>
             </div>
-            
-            {/* Pro Stats */}
-            <div className="hidden md:flex gap-6">
-              <div className="text-right">
-                <p className="text-sm text-gray-600">This Month</p>
-                <p className="text-2xl font-bold text-amber-600">{totalComparisonsThisMonth}</p>
-                <p className="text-xs text-gray-500">comparisons</p>
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 text-sm">
+                <span className="text-slate-600">47 comparisons</span>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Total Saved</p>
-                <p className="text-2xl font-bold text-green-600">${totalSavingsThisMonth.toFixed(2)}</p>
-                <p className="text-xs text-gray-500">this month</p>
+              <div className="px-4 py-2 bg-emerald-50 rounded-full border border-emerald-200 text-sm">
+                <span className="font-bold text-emerald-700">Saved $183.45 this month</span>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Sidebar - Saved Lists */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
+          {/* Main Input Card - Hero Style */}
+          <div className="bg-white/90 backdrop-blur-xl rounded-[3rem] p-12 shadow-2xl border border-white/60 mb-8">
+            <div className="text-center mb-8">
+              <h1 className="text-5xl font-black text-slate-900 mb-4 tracking-tight">
+                What's on your <span className="bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">shopping list?</span>
+              </h1>
+              <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+                Enter your items below and we'll find the best prices across all Montreal stores instantly.
+              </p>
+            </div>
+
+            <div className="max-w-3xl mx-auto">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="chicken, eggs, milk, bread, pasta, ground beef, bananas, apples..."
+                rows={6}
+                className="w-full p-6 bg-slate-50 border-2 border-slate-200 rounded-3xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all text-lg text-slate-700 placeholder:text-slate-400 resize-none font-medium mb-6"
+              />
+
+              <button
+                onClick={handleCompare}
+                disabled={loading || !input.trim()}
+                className="w-full py-5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-300 disabled:to-slate-400 text-white rounded-2xl font-bold text-xl transition-all transform hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xl"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Analyzing prices...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-6 h-6 fill-current" />
+                    Analyze Prices
+                    <ArrowRight className="w-6 h-6" />
+                  </>
+                )}
+              </button>
+
+              <p className="text-center text-sm text-slate-500 mt-4">
+                Pro members get unlimited comparisons • No credit card required
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Start Examples */}
+          <div className="text-center mb-8">
+            <p className="text-sm text-slate-600 mb-4 font-semibold">Try these examples:</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              {[
+                { label: 'Weekly Staples', items: 'chicken, eggs, milk, bread' },
+                { label: 'Meal Prep', items: 'chicken, ground beef, pasta' },
+                { label: 'Breakfast Items', items: 'eggs, milk, bread' }
+              ].map((example) => (
+                <button
+                  key={example.label}
+                  onClick={() => setInput(example.items)}
+                  className="px-5 py-3 bg-white/80 backdrop-blur-sm hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 rounded-2xl text-sm font-semibold transition-all shadow-sm hover:shadow-md"
+                >
+                  {example.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Lists */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-lg border border-white/60">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-xl text-slate-800 flex items-center gap-2">
+                <History className="w-6 h-6 text-slate-600" />
+                Recent Lists
+              </h3>
+              <button className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-xl transition-all">
+                <Plus className="w-5 h-5"/>
+              </button>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              {SAVED_LISTS.map((list) => (
+                <button
+                  key={list.id}
+                  onClick={() => setInput(list.items)}
+                  className="group p-5 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-indigo-50 border-2 border-transparent hover:border-emerald-200 transition-all cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-all shadow-sm">
+                      <ShoppingCart className="w-6 h-6 text-slate-600 group-hover:text-emerald-700" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-slate-800">{list.name}</p>
+                      <p className="text-sm text-slate-500">{list.itemCount} items</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-600 transition-all group-hover:translate-x-1" />
+                  </div>
+                  <p className="text-xs text-slate-500">Last used {list.lastUsed}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // RESULTS STATE - Sidebar layout
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/20 to-indigo-50/20 py-8">
+      <main className="max-w-7xl mx-auto px-6">
+        <div className="grid lg:grid-cols-12 gap-6">
+          
+          {/* LEFT SIDEBAR - Control Panel */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* Pro Status Card */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-[2rem] p-8 text-white shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-indigo-500/10"></div>
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl"></div>
+              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl"></div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-6">
+                  <Crown className="w-5 h-5 text-amber-400" />
+                  <span className="text-xs font-black uppercase tracking-widest text-amber-400/90">Unlimited Member</span>
+                </div>
+                <h2 className="text-3xl font-black mb-2">Montreal North</h2>
+                <p className="text-slate-300 text-sm mb-6">4 chains monitored in your area</p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
+                    <p className="text-xs text-slate-400 mb-1">Comparisons</p>
+                    <p className="text-3xl font-black">47</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
+                    <p className="text-xs text-slate-400 mb-1">Efficiency</p>
+                    <p className="text-3xl font-black">94%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Input Box */}
+            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-lg border border-white/60">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                  <Star className="w-5 h-5 text-amber-500" />
-                  Saved Lists
-                </h2>
-                <button className="p-1 hover:bg-gray-100 rounded-lg transition">
-                  <Plus className="w-5 h-5 text-gray-600" />
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Search className="w-4 h-4" /> New Comparison
+                </h3>
+                <button 
+                  onClick={() => setResults(null)}
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold"
+                >
+                  Clear
                 </button>
               </div>
-              
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="chicken, eggs, milk, bread..."
+                className="w-full h-32 p-4 bg-slate-50/80 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 transition-all text-slate-700 placeholder:text-slate-400 resize-none font-medium"
+              />
+              <button
+                onClick={handleCompare}
+                disabled={loading || !input.trim()}
+                className="w-full mt-4 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-300 disabled:to-slate-400 text-white rounded-2xl font-bold transition-all transform hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-5 h-5 fill-current" />
+                    Analyze Prices
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Saved Lists */}
+            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-lg border border-white/60">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <History className="w-5 h-5 text-slate-600" />
+                  Recent Lists
+                </h3>
+                <button className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-xl transition-all">
+                  <Plus className="w-5 h-5"/>
+                </button>
+              </div>
               <div className="space-y-2">
-                {SAVED_LISTS.map(list => (
+                {SAVED_LISTS.map((list) => (
                   <button
                     key={list.id}
-                    onClick={() => loadSavedList(list.items)}
-                    className="w-full text-left p-3 rounded-lg hover:bg-amber-50 transition group"
+                    onClick={() => setInput(list.items)}
+                    className="group w-full flex items-center justify-between p-4 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-indigo-50 border border-transparent hover:border-emerald-200/50 transition-all cursor-pointer"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-semibold text-sm text-gray-900 group-hover:text-amber-600 transition">
-                          {list.name}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1 line-clamp-1">
-                          {list.items}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {list.lastUsed}
-                        </p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-all shadow-sm">
+                        <ShoppingCart className="w-5 h-5 text-slate-600 group-hover:text-emerald-700" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-slate-800">{list.name}</p>
+                        <p className="text-xs text-slate-500">{list.itemCount} items • {list.lastUsed}</p>
                       </div>
                     </div>
+                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-600 transition-all group-hover:translate-x-1" />
                   </button>
                 ))}
               </div>
-
-              {/* Pro Features Quick Access */}
-              <div className="mt-6 pt-6 border-t border-gray-200 space-y-2">
-                <button 
-                  onClick={() => setShowAlertsModal(true)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 transition text-left"
-                >
-                  <Bell className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Price Alerts</p>
-                    <p className="text-xs text-gray-600">3 active</p>
-                  </div>
-                </button>
-
-                <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 transition text-left">
-                  <History className="w-5 h-5 text-purple-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">History</p>
-                    <p className="text-xs text-gray-600">View past comparisons</p>
-                  </div>
-                </button>
-              </div>
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {/* Quick Compare Input */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <label className="block text-lg font-semibold text-gray-900">
-                  What are you shopping for?
-                </label>
-                <div className="flex gap-2">
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition" title="Voice input">
-                    <Sparkles className="w-5 h-5 text-amber-600" />
+          {/* RIGHT CONTENT AREA */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* Savings Hero */}
+            <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/60 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-indigo-500/5"></div>
+              <div className="absolute -top-24 -right-24 w-64 h-64 bg-gradient-to-br from-emerald-400/10 to-emerald-600/10 rounded-full blur-3xl"></div>
+              
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                <div>
+                  <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 rounded-full text-xs font-black uppercase tracking-tight mb-4 shadow-sm">
+                    <Sparkles className="w-3 h-3" />
+                    {selectedStrategy === 'cheapest' ? 'Maximum Savings' : selectedStrategy === 'one-stop' ? 'Most Convenient' : 'Balanced Approach'}
+                  </span>
+                  <h1 className="text-6xl font-black text-slate-900 mb-3 tracking-tight">
+                    Save <span className="bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">${planTotalSavings.toFixed(2)}</span>
+                  </h1>
+                  <p className="text-slate-600 max-w-md leading-relaxed">
+                    {selectedStrategy === 'cheapest' 
+                      ? 'Get the absolute best price on every item by visiting multiple stores.'
+                      : selectedStrategy === 'one-stop'
+                      ? 'Get everything at one store for maximum convenience.'
+                      : 'Visit two stores for a good balance of savings and convenience.'}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2">
+                    <Download className="w-4 h-4" /> Export
+                  </button>
+                  <button className="px-6 py-3 bg-gradient-to-r from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 text-emerald-800 rounded-xl font-bold transition-all flex items-center gap-2">
+                    <Share2 className="w-4 h-4" /> Share
                   </button>
                 </div>
               </div>
-              
-              <p className="text-sm text-gray-600 mb-4">
-                Enter items separated by commas • Pro: Unlimited comparisons • Press Ctrl+Enter to compare
-              </p>
-              
-              <div className="space-y-4">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="chicken breast, eggs, 2% milk, whole wheat bread, ground beef, pasta..."
-                  rows={3}
-                  className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition resize-none"
-                />
-                
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleCompare}
-                    disabled={!input.trim() || loading}
-                    className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl hover:from-amber-600 hover:to-amber-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed transition font-semibold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                        Comparing Prices...
-                      </>
-                    ) : (
-                      <>
-                        <TrendingDown className="w-6 h-6" />
-                        Compare Prices
-                        <ArrowRight className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                  
-                  {input.trim() && (
-                    <button
-                      onClick={() => setShowSaveModal(true)}
-                      className="px-6 py-4 bg-white border-2 border-amber-500 text-amber-600 rounded-xl hover:bg-amber-50 transition font-semibold flex items-center gap-2"
-                    >
-                      <Save className="w-5 h-5" />
-                      Save List
-                    </button>
-                  )}
+            </div>
+
+            {/* Strategy Selector */}
+            <div className="grid md:grid-cols-3 gap-4">
+              <button
+                onClick={() => setSelectedStrategy('one-stop')}
+                className={`p-6 rounded-[2rem] border-2 transition-all ${
+                  selectedStrategy === 'one-stop'
+                    ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-xl shadow-indigo-100 scale-[1.02]'
+                    : 'border-slate-200 bg-white/80 backdrop-blur-sm hover:border-indigo-200 hover:shadow-lg'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-sm ${
+                    selectedStrategy === 'one-stop'
+                      ? 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-200'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <Target className="w-6 h-6"/>
+                  </div>
                 </div>
+                <h4 className="font-bold text-slate-900 mb-1">One-Stop Shop</h4>
+                <p className="text-xs text-slate-600 mt-2">Most convenient - everything at one store</p>
+              </button>
+
+              <button
+                onClick={() => setSelectedStrategy('two-stop')}
+                className={`p-6 rounded-[2rem] border-2 transition-all ${
+                  selectedStrategy === 'two-stop'
+                    ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-xl shadow-blue-100 scale-[1.02]'
+                    : 'border-slate-200 bg-white/80 backdrop-blur-sm hover:border-blue-200 hover:shadow-lg'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-sm ${
+                    selectedStrategy === 'two-stop'
+                      ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <Route className="w-6 h-6"/>
+                  </div>
+                </div>
+                <h4 className="font-bold text-slate-900 mb-1">Two-Stop Plan</h4>
+                <p className="text-xs text-slate-600 mt-2">Balance savings and convenience</p>
+              </button>
+
+              <button
+                onClick={() => setSelectedStrategy('cheapest')}
+                className={`p-6 rounded-[2rem] border-2 transition-all ${
+                  selectedStrategy === 'cheapest'
+                    ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-xl shadow-emerald-100 scale-[1.02]'
+                    : 'border-slate-200 bg-white/80 backdrop-blur-sm hover:border-emerald-200 hover:shadow-lg'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-sm ${
+                    selectedStrategy === 'cheapest'
+                      ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-200'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <TrendingDown className="w-6 h-6"/>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                    ⭐ Max Savings
+                  </span>
+                </div>
+                <h4 className="font-bold text-slate-900 mb-1">Cheapest Prices</h4>
+                <p className="text-xs text-slate-600 mt-2">Best price on every single item</p>
+              </button>
+            </div>
+
+            {/* Smart Shopping Plan */}
+            <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl border border-white/60">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 mb-2">Your Shopping Plan</h2>
+                  <p className="text-slate-600">
+                    {shoppingPlan?.length === 1 ? 'One-stop shopping - get everything here' : `${shoppingPlan?.length}-stop strategy`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPriceBreakdown(!showPriceBreakdown)}
+                  className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-all flex items-center gap-2"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  {showPriceBreakdown ? 'Hide' : 'Show'} Price Details
+                </button>
               </div>
 
-              {/* Pro Features Strip */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mb-2">
-                      <Crown className="w-5 h-5 text-amber-600" />
+              {/* Store-by-Store Shopping List */}
+              <div className="space-y-6">
+                {shoppingPlan?.map((stop, storeIdx) => (
+                  <div key={stop.store} className="relative">
+                    {/* Store Header */}
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-emerald-200">
+                        {storeIdx + 1}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-black text-slate-900">{stop.store}</h3>
+                        <p className="text-sm text-slate-600">
+                          {stop.items.length} {stop.items.length === 1 ? 'item' : 'items'}
+                          {stop.savings > 0 && ` • Save ${stop.savings.toFixed(2)}`}
+                        </p>
+                      </div>
+                      <MapPin className="w-6 h-6 text-slate-400" />
                     </div>
-                    <p className="text-xs text-gray-600">Unlimited</p>
+
+                    {/* Items Grid */}
+                    <div className="grid md:grid-cols-2 gap-3 ml-16">
+                      {stop.items.map((item: any, idx: number) => {
+                        const displayPrice = stop.isOneStop ? item.priceAtStore : item.best.price;
+                        const displaySavings = stop.isOneStop ? item.savingsAtStore : item.best.savings;
+                        
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-3 p-4 bg-gradient-to-r from-slate-50 to-emerald-50/50 rounded-2xl border border-slate-200 hover:border-emerald-300 transition-all group"
+                          >
+                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
+                              {item.item === 'chicken' ? '🍗' : item.item === 'eggs' ? '🥚' : item.item === 'milk' ? '🥛' : '🍞'}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-bold text-slate-900 capitalize">{item.item}</p>
+                              <p className="text-sm text-slate-600">
+                                ${displayPrice?.toFixed(2)} per {stop.isOneStop ? item.best?.unit : item.best.unit}
+                              </p>
+                            </div>
+                            {displaySavings > 0 && (
+                              <div className="text-right">
+                                <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
+                                  -${displaySavings.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Connector line to next stop */}
+                    {storeIdx < (shoppingPlan?.length || 0) - 1 && (
+                      <div className="flex items-center gap-3 my-6 ml-6">
+                        <div className="w-0.5 h-8 bg-slate-200"></div>
+                        <ChevronRight className="w-5 h-5 text-slate-400 rotate-90" />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                      <Bell className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <p className="text-xs text-gray-600">Price Alerts</p>
+                ))}
+              </div>
+
+              {/* Total Summary */}
+              <div className="mt-8 pt-6 border-t border-slate-200">
+                <div className="flex items-center justify-between p-6 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-2xl">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-800 mb-1">Total Savings with This Strategy</p>
+                    <p className="text-4xl font-black text-emerald-900">${planTotalSavings.toFixed(2)}</p>
                   </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                      <BarChart3 className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <p className="text-xs text-gray-600">Price History</p>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-2">
-                      <Download className="w-5 h-5 text-green-600" />
-                    </div>
-                    <p className="text-xs text-gray-600">Export Data</p>
+                  <div className="text-right">
+                    <p className="text-sm text-emerald-700">vs. most expensive options</p>
+                    {selectedStrategy !== 'cheapest' && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        Switch to "Cheapest Prices" to save ${results.totalSavings}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Results Section */}
-            {results && plans && currentPlan && (
-              <>
-                {/* Enhanced Savings Card */}
-                <div className="bg-gradient-to-br from-green-600 via-green-700 to-emerald-700 rounded-2xl shadow-2xl p-8 mb-6 text-white">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <p className="text-green-100 text-lg mb-2">Potential savings</p>
-                      <p className="text-6xl md:text-7xl font-bold">
-                        ${results.totalSavings}
-                      </p>
-                      <p className="text-xl text-green-50 mt-2">
-                        on this shopping trip
-                      </p>
-                    </div>
-                    
-                    <button
-                      onClick={exportResults}
-                      className="bg-white/20 backdrop-blur border-2 border-white/30 text-white px-4 py-3 rounded-xl hover:bg-white/30 transition flex items-center gap-2"
-                    >
-                      <Download className="w-5 h-5" />
-                      Export
+            {/* Price Breakdown - Only shown when toggled */}
+            {showPriceBreakdown && (
+              <div className="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/60 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50/50 to-transparent">
+                  <h3 className="font-black text-lg text-slate-900">Detailed Price Comparison</h3>
+                  <div className="flex gap-2">
+                    <button className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all">
+                      <Filter className="w-5 h-5"/>
                     </button>
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                      <p className="text-green-100 text-sm mb-1">Best Single Store</p>
-                      <p className="text-2xl font-bold">{results.topStore}</p>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                      <p className="text-green-100 text-sm mb-1">Items Compared</p>
-                      <p className="text-2xl font-bold">{results.itemCount}</p>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                      <p className="text-green-100 text-sm mb-1">ROI This Month</p>
-                      <p className="text-2xl font-bold">{Math.round(totalSavingsThisMonth / 6.99)}x</p>
-                    </div>
+                    <button className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all">
+                      <ArrowUpDown className="w-5 h-5"/>
+                    </button>
                   </div>
                 </div>
-
-                {/* Smart Shopping Plans */}
-                <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                      <Route className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        Smart Shopping Plans
-                      </h2>
-                      <p className="text-gray-600">Choose your strategy based on time vs. savings</p>
-                    </div>
-                  </div>
-
-                  {/* Plan Selector */}
-                  <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
-                    <button
-                      onClick={() => setSelectedPlan('1-stop')}
-                      className={`flex-1 min-w-[200px] p-4 rounded-xl border-2 transition ${
-                        selectedPlan === '1-stop'
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <Target className={`w-5 h-5 ${selectedPlan === '1-stop' ? 'text-blue-600' : 'text-gray-600'}`} />
-                        <h3 className={`font-bold ${selectedPlan === '1-stop' ? 'text-blue-900' : 'text-gray-900'}`}>
-                          1-Stop Shop
-                        </h3>
-                      </div>
-                      <p className="text-sm text-gray-600">Most convenient</p>
-                      <p className="text-xs text-gray-500 mt-1">Save: ${plans.oneStop.totalSavings.toFixed(2)}</p>
-                    </button>
-
-                    <button
-                      onClick={() => setSelectedPlan('2-stop')}
-                      className={`flex-1 min-w-[200px] p-4 rounded-xl border-2 transition ${
-                        selectedPlan === '2-stop'
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <Zap className={`w-5 h-5 ${selectedPlan === '2-stop' ? 'text-green-600' : 'text-gray-600'}`} />
-                        <h3 className={`font-bold ${selectedPlan === '2-stop' ? 'text-green-900' : 'text-gray-900'}`}>
-                          2-Stop Plan
-                        </h3>
-                      </div>
-                      <p className="text-sm text-gray-600">Best balance</p>
-                      <p className="text-xs text-green-700 font-semibold mt-1">Save: ${plans.twoStop.totalSavings.toFixed(2)} ⭐ Recommended</p>
-                    </button>
-
-                    <button
-                      onClick={() => setSelectedPlan('3-stop')}
-                      className={`flex-1 min-w-[200px] p-4 rounded-xl border-2 transition ${
-                        selectedPlan === '3-stop'
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <Crown className={`w-5 h-5 ${selectedPlan === '3-stop' ? 'text-purple-600' : 'text-gray-600'}`} />
-                        <h3 className={`font-bold ${selectedPlan === '3-stop' ? 'text-purple-900' : 'text-gray-900'}`}>
-                          3-Stop Max Savings
-                        </h3>
-                      </div>
-                      <p className="text-sm text-gray-600">Maximum savings</p>
-                      <p className="text-xs text-gray-500 mt-1">Save: ${plans.threeStop.totalSavings.toFixed(2)}</p>
-                    </button>
-                  </div>
-
-                  {/* Plan Details */}
-                  <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 mb-6">
-                    <p className="text-gray-700 leading-relaxed mb-4">
-                      {currentPlan.description}
-                    </p>
-
-                    <div className="space-y-4">
-                      {currentPlan.stops.map((stop, idx) => (
-                        <div key={idx} className="bg-white rounded-lg p-5 border-2 border-slate-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center font-bold">
-                                {idx + 1}
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-lg text-gray-900">{stop.store}</h4>
-                                <p className="text-sm text-gray-600">{stop.totalItems} items • Est. save ${stop.estimatedSavings.toFixed(2)}</p>
-                              </div>
+                
+                <div className="divide-y divide-slate-100">
+                  {results.items.map((item: any, idx: number) => (
+                    item.found && (
+                      <div key={idx} className="p-6 hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-transparent transition-all">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center text-2xl shadow-sm">
+                              {idx === 0 ? '🍗' : idx === 1 ? '🥚' : idx === 2 ? '🥛' : '🍞'}
                             </div>
-                            <MapPin className="w-5 h-5 text-gray-400" />
+                            <div>
+                              <p className="font-bold text-slate-900 capitalize mb-1">{item.item}</p>
+                              <p className="text-sm text-slate-500">{item.best?.name}</p>
+                            </div>
                           </div>
-                          
-                          <div className="flex flex-wrap gap-2">
-                            {stop.items.map((item, itemIdx) => (
-                              <span
-                                key={itemIdx}
-                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium capitalize"
-                              >
-                                {item}
-                              </span>
-                            ))}
+                          <div className="text-right">
+                            <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg mb-2">
+                              <Check className="w-3 h-3" />
+                              BEST PRICE
+                            </span>
+                            <p className="text-2xl font-black text-slate-900">${item.best?.price.toFixed(2)}</p>
+                            <p className="text-xs text-slate-500">per {item.best?.unit}</p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-
-                    {selectedPlan === '2-stop' && (
-                      <div className="mt-4 p-4 bg-green-100 border-2 border-green-300 rounded-lg">
-                        <p className="text-sm text-green-800 font-semibold flex items-center gap-2">
-                          <Zap className="w-4 h-4" />
-                          💡 Pro Tip: This plan gives you the best savings-to-effort ratio. You'll hit the biggest price differences without making your shopping trip too complicated.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Detailed Price Breakdown */}
-                <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Full Price Breakdown
-                    </h2>
-                    <button 
-                      onClick={() => setShowAlertsModal(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-semibold"
-                    >
-                      <Bell className="w-4 h-4" />
-                      Set Price Alerts
-                    </button>
-                  </div>
-
-                  {results.items.map((item, idx) => (
-                    item.found && (
-                      <div key={idx} className="mb-6 last:mb-0 pb-6 last:pb-0 border-b last:border-0">
-                        <h3 className="text-lg font-bold text-gray-900 mb-3 capitalize flex items-center justify-between">
-                          <span>{item.item}</span>
-                          {item.best && item.best.savings > 0.50 && (
-                            <span className="text-sm bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-semibold">
-                              Great Deal! 🔥
-                            </span>
-                          )}
-                        </h3>
-                        <div className="space-y-2">
-                          {item.allPrices.map((product, pIdx) => {
-                            const isBest = pIdx === 0;
-                            return (
-                              <div
-                                key={pIdx}
-                                className={`flex items-center justify-between p-4 rounded-lg transition ${
-                                  isBest 
-                                    ? 'bg-green-100 border-2 border-green-300' 
-                                    : 'bg-gray-50 hover:bg-gray-100'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  {isBest && (
-                                    <Crown className="w-5 h-5 text-amber-600" />
-                                  )}
-                                  <div>
-                                    <p className="font-semibold text-gray-900">{product.store}</p>
-                                    <p className="text-sm text-gray-600">{product.name}</p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className={`text-xl font-bold ${isBest ? 'text-green-700' : 'text-gray-900'}`}>
-                                    ${product.price.toFixed(2)}
-                                  </p>
-                                  <p className="text-sm text-gray-600">per {product.unit}</p>
-                                  {product.savings > 0 && !isBest && (
-                                    <p className="text-xs text-red-600 mt-1">
-                                      +${product.savings.toFixed(2)} vs best
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+                        
+                        <div className="grid grid-cols-4 gap-2">
+                          {item.allPrices.map((store: any, storeIdx: number) => (
+                            <div 
+                              key={storeIdx}
+                              className={`px-3 py-2.5 rounded-xl text-center border transition-all ${
+                                storeIdx === 0 
+                                  ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 border-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105' 
+                                  : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50'
+                              }`}
+                            >
+                              <p className="text-[10px] font-black uppercase tracking-tight opacity-80 mb-1">
+                                {store.store}
+                              </p>
+                              <p className="text-sm font-bold">${store.price.toFixed(2)}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )
                   ))}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Save List Modal */}
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Save Shopping List</h3>
-              <button onClick={() => setShowSaveModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <input
-              type="text"
-              placeholder="List name (e.g., Weekly Groceries)"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 mb-4"
-            />
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowSaveModal(false)}
-                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-semibold"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => setShowSaveModal(false)}
-                className="flex-1 px-4 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition font-semibold"
-              >
-                Save List
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Price Alerts Modal */}
-      {showAlertsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">Price Drop Alerts</h3>
-              <button onClick={() => setShowAlertsModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <Bell className="w-5 h-5 text-blue-600" />
-                    <div>
-                      <p className="font-semibold text-gray-900">Chicken Breast</p>
-                      <p className="text-sm text-gray-600">Alert when below $14.00/kg</p>
-                    </div>
-                  </div>
-                  <button className="p-2 hover:bg-blue-100 rounded-lg">
-                    <Trash2 className="w-4 h-4 text-red-600" />
-                  </button>
-                </div>
-                <p className="text-sm text-blue-700">✓ Active - Currently $14.97/kg at Maxi</p>
-              </div>
-
-              <button className="w-full p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-amber-500 hover:bg-amber-50 transition flex items-center justify-center gap-2 text-gray-600 hover:text-amber-600">
-                <Plus className="w-5 h-5" />
-                Add New Alert
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </main>
     </div>
   );
 }
