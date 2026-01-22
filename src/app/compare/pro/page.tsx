@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Link from "next/link";
 import { 
-  TrendingDown, ShoppingCart, Check, Crown, ArrowRight, 
+  TrendingDown, ShoppingCart, Check, Crown, ArrowRight, ArrowLeft, 
   Star, Bell, Save, History, Download, Sparkles, BarChart3,
   Plus, Trash2, X, Clock, MapPin, Zap, Target, Route,
   Wallet, ChevronRight, Filter, Search, Share2, ArrowUpDown
@@ -42,12 +43,57 @@ const SAVED_LISTS = [
   { id: 3, name: 'Quick Run', items: 'milk, bread', lastUsed: '3 days ago', itemCount: 5 }
 ];
 
+const HISTORY_KEY = "PRICECART_PRO_COMPARE_HISTORY_V1";
+
+type CompareHistoryEntry = {
+  id: string;
+  createdAt: number;
+  input: string;
+  items: string[];
+  totalSavings: number;
+  strategy: "cheapest" | "one-stop" | "two-stop";
+};
+
+function readHistory(): CompareHistoryEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHistory(next: CompareHistoryEntry[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+}
+
 export default function ProComparePage() {
+  const [comparisonCount, setComparisonCount] = useState(0);
+
+useEffect(() => {
+  // initial load
+  setComparisonCount(readHistory().length);
+
+  // keep in sync if another tab updates it
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === HISTORY_KEY) setComparisonCount(readHistory().length);
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}, []);
   const [input, setInput] = useState('');
   const [results, setResults] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState<'cheapest' | 'one-stop' | 'two-stop'>('cheapest');
   const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
+  const [showCreateListModal, setShowCreateListModal] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [newListItems, setNewListItems] = useState('');
+  const [savedLists, setSavedLists] = useState(SAVED_LISTS);
 
   const handleCompare = () => {
     if (!input.trim()) return;
@@ -81,6 +127,20 @@ export default function ProComparePage() {
         }
       });
 
+      const entry: CompareHistoryEntry = {
+  id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()),
+  createdAt: Date.now(),
+  input: input.trim(),
+  items,
+  totalSavings: Number(totalSavings.toFixed(2)),
+  strategy: selectedStrategy,
+};
+
+const prev = readHistory();
+const next = [entry, ...prev];
+writeHistory(next);
+setComparisonCount(next.length);
+
       setResults({
         items: comparisonData,
         totalSavings: totalSavings.toFixed(2),
@@ -99,7 +159,7 @@ export default function ProComparePage() {
 
     const { items, storeGroups } = results;
     
-    if (selectedStrategy === 'cheapest') {
+       if (selectedStrategy === 'cheapest') {
       // Cheapest: Buy each item at its cheapest store
       return Object.entries(storeGroups).map(([store, storeItems]) => ({
         store,
@@ -107,7 +167,7 @@ export default function ProComparePage() {
         savings: (storeItems as any[]).reduce((sum, item) => sum + (item.best?.savings || 0), 0),
         isOneStop: false
       }));
-    } 
+    }
     
     if (selectedStrategy === 'one-stop') {
       // One-stop: Find the store with most items, buy everything there
@@ -161,15 +221,45 @@ export default function ProComparePage() {
   const shoppingPlan = getShoppingPlan();
   const planTotalSavings = shoppingPlan?.reduce((sum, stop) => sum + stop.savings, 0) || 0;
 
+  // Handle creating new list
+  const handleCreateList = () => {
+    if (!newListName.trim()) return;
+    
+    const newList = {
+      id: Date.now(),
+      name: newListName.trim(),
+      items: newListItems.trim(),
+      lastUsed: 'Just now',
+      itemCount: newListItems.trim() ? newListItems.split(',').filter(i => i.trim()).length : 0
+    };
+    
+    setSavedLists([newList, ...savedLists]);
+    setNewListName('');
+    setNewListItems('');
+    setShowCreateListModal(false);
+  };
+
+  // Open modal with current input pre-filled
+  const openCreateListModal = () => {
+    setNewListItems(input);
+    setShowCreateListModal(true);
+  };
+
+  // Handle deleting a list
+  const handleDeleteList = (listId: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the list selection
+    setSavedLists(savedLists.filter(list => list.id !== listId));
+  };
+
   // INITIAL STATE - Centered, prominent input
   if (!results) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/20 to-indigo-50/20 py-12">
-        <main className="max-w-5xl mx-auto px-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/20 to-indigo-50/20 py-8 sm:py-12">
+        <main className="max-w-5xl mx-auto px-4 sm:px-6">
           
           {/* Pro Status Banner */}
-          <div className="mb-8 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
               <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-200 rounded-full">
                 <Crown className="w-5 h-5 text-amber-700" />
                 <span className="text-sm font-black text-amber-900 uppercase tracking-wide">Pro Member</span>
@@ -178,10 +268,50 @@ export default function ProComparePage() {
                 <span className="font-semibold text-slate-900">Montreal North</span> • 4 chains monitored
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 text-sm">
-                <span className="text-slate-600">47 comparisons</span>
-              </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
+             {/* Mobile compact link */}
+<Link
+  href="/compare/pro/history"
+  className="sm:hidden inline-flex items-center justify-between gap-3 w-full
+             px-4 py-3 bg-white/90 backdrop-blur-xl rounded-2xl shadow-lg border border-white/60
+             hover:shadow-xl transition-all focus:outline-none focus:ring-4 focus:ring-emerald-100"
+  aria-label="View comparison history"
+>
+  <div className="flex items-center gap-2">
+    <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+      <ShoppingCart className="w-4 h-4 text-emerald-600" />
+    </div>
+    <span className="text-sm font-semibold text-slate-700">History</span>
+  </div>
+  <div className="flex items-center gap-2">
+    <span className="text-lg font-black text-slate-900">{comparisonCount}</span>
+    <ChevronRight className="w-4 h-4 text-emerald-700" />
+  </div>
+</Link>
+
+{/* Desktop card */}
+<Link
+  href="/compare/pro/history"
+  className="hidden sm:block group bg-white/90 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/60
+             hover:shadow-xl hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-100"
+  aria-label="View comparison history"
+>
+  <div className="flex items-center gap-3 mb-2">
+    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+      <ShoppingCart className="w-5 h-5 text-emerald-600" />
+    </div>
+    <p className="text-sm font-semibold text-slate-600">Total Comparisons</p>
+  </div>
+
+  <div className="flex items-end justify-between">
+    <p className="text-4xl font-black text-slate-900">{comparisonCount}</p>
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity">
+      View history <ChevronRight className="w-4 h-4" />
+    </span>
+  </div>
+</Link>
+
+
               <div className="px-4 py-2 bg-emerald-50 rounded-full border border-emerald-200 text-sm">
                 <span className="font-bold text-emerald-700">Saved $183.45 this month</span>
               </div>
@@ -189,12 +319,12 @@ export default function ProComparePage() {
           </div>
 
           {/* Main Input Card - Hero Style */}
-          <div className="bg-white/90 backdrop-blur-xl rounded-[3rem] p-12 shadow-2xl border border-white/60 mb-8">
+          <div className="bg-white/90 backdrop-blur-xl rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 shadow-2xl border border-white/60 mb-8">
             <div className="text-center mb-8">
-              <h1 className="text-5xl font-black text-slate-900 mb-4 tracking-tight">
+              <h1 className="text-3xl sm:text-5xl font-black text-slate-900 mb-4 tracking-tight">
                 What's on your <span className="bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">shopping list?</span>
               </h1>
-              <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              <p className="text-base sm:text-xl text-slate-600 max-w-2xl mx-auto">
                 Enter your items below and we'll find the best prices across all Montreal stores instantly.
               </p>
             </div>
@@ -205,13 +335,13 @@ export default function ProComparePage() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="chicken, eggs, milk, bread, pasta, ground beef, bananas, apples..."
                 rows={6}
-                className="w-full p-6 bg-slate-50 border-2 border-slate-200 rounded-3xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all text-lg text-slate-700 placeholder:text-slate-400 resize-none font-medium mb-6"
+                className="w-full p-4 sm:p-6 bg-slate-50 border-2 border-slate-200 rounded-3xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all text-base sm:text-lg text-slate-700 placeholder:text-slate-400 resize-none font-medium mb-6"
               />
 
               <button
                 onClick={handleCompare}
                 disabled={loading || !input.trim()}
-                className="w-full py-5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-300 disabled:to-slate-400 text-white rounded-2xl font-bold text-xl transition-all transform hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xl"
+                className="w-full py-4 sm:py-5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-300 disabled:to-slate-400 text-white rounded-2xl font-bold text-lg sm:text-xl transition-all transform hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xl"
               >
                 {loading ? (
                   <>
@@ -253,40 +383,150 @@ export default function ProComparePage() {
             </div>
           </div>
 
-          {/* Recent Lists */}
-          <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-lg border border-white/60">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-xl text-slate-800 flex items-center gap-2">
-                <History className="w-6 h-6 text-slate-600" />
-                Recent Lists
-              </h3>
-              <button className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-xl transition-all">
-                <Plus className="w-5 h-5"/>
-              </button>
-            </div>
-            <div className="grid md:grid-cols-3 gap-4">
-              {SAVED_LISTS.map((list) => (
-                <button
-                  key={list.id}
-                  onClick={() => setInput(list.items)}
-                  className="group p-5 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-indigo-50 border-2 border-transparent hover:border-emerald-200 transition-all cursor-pointer text-left"
+        {/* Recent Lists */}
+<div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-lg border border-white/60">
+  <div className="flex items-center justify-between mb-6">
+    <h3 className="font-bold text-xl text-slate-800 flex items-center gap-2">
+      <History className="w-6 h-6 text-slate-600" />
+      Recent Lists
+    </h3>
+    <button
+      type="button"
+      onClick={openCreateListModal}
+      className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-xl transition-all"
+      aria-label="Create new list"
+    >
+      <Plus className="w-5 h-5" />
+    </button>
+  </div>
+
+  <div className="grid md:grid-cols-3 gap-4">
+    {savedLists.map((list) => (
+      <div
+        key={list.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => setInput(list.items)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setInput(list.items);
+          }
+        }}
+        className="group p-5 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-indigo-50
+                   border-2 border-transparent hover:border-emerald-200 transition-all cursor-pointer
+                   text-left relative focus:outline-none focus:ring-4 focus:ring-emerald-100"
+        aria-label={`Use list ${list.name}`}
+      >
+        {/* Delete button */}
+        <button
+          type="button"
+          onClick={(e) => handleDeleteList(list.id, e)}
+          className="absolute top-3 right-3 p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg
+                     opacity-0 group-hover:opacity-100 transition-all z-10"
+          title="Delete list"
+          aria-label={`Delete list ${list.name}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-all shadow-sm">
+            <ShoppingCart className="w-6 h-6 text-slate-600 group-hover:text-emerald-700" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-slate-800">{list.name}</p>
+            <p className="text-sm text-slate-500">{list.itemCount} items</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-600 transition-all group-hover:translate-x-1" />
+        </div>
+
+        <p className="text-xs text-slate-500">Last used {list.lastUsed}</p>
+      </div>
+    ))}
+  </div>
+</div>
+        </main>
+
+        {/* Create List Modal */}
+        {showCreateListModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-black text-slate-900">Create Shopping List</h3>
+                <button 
+                  onClick={() => {
+                    setShowCreateListModal(false);
+                    setNewListName('');
+                    setNewListItems('');
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-xl transition-all"
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-all shadow-sm">
-                      <ShoppingCart className="w-6 h-6 text-slate-600 group-hover:text-emerald-700" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-slate-800">{list.name}</p>
-                      <p className="text-sm text-slate-500">{list.itemCount} items</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-600 transition-all group-hover:translate-x-1" />
-                  </div>
-                  <p className="text-xs text-slate-500">Last used {list.lastUsed}</p>
+                  <X className="w-6 h-6 text-slate-600" />
                 </button>
-              ))}
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  List Name *
+                </label>
+                <input
+                  type="text"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  placeholder="e.g., Weekly Groceries"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all text-slate-700 placeholder:text-slate-400"
+                  autoFocus
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Items (optional)
+                </label>
+                <textarea
+                  value={newListItems}
+                  onChange={(e) => setNewListItems(e.target.value)}
+                  placeholder="chicken, eggs, milk, bread..."
+                  rows={4}
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all text-slate-700 placeholder:text-slate-400 resize-none"
+                />
+                {newListItems.trim() && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    {newListItems.split(',').filter(i => i.trim()).length} items
+                  </p>
+                )}
+              </div>
+
+              <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>Tip:</strong> Separate items with commas. You can save an empty list and add items later.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <button
+                  onClick={() => {
+                    setShowCreateListModal(false);
+                    setNewListName('');
+                    setNewListItems('');
+                  }}
+                  className="flex-1 px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateList}
+                  disabled={!newListName.trim()}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-300 disabled:to-slate-400 text-white rounded-xl font-bold transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Save className="w-5 h-5" />
+                  Save List
+                </button>
+              </div>
             </div>
           </div>
-        </main>
+        )}
       </div>
     );
   }
@@ -294,7 +534,18 @@ export default function ProComparePage() {
   // RESULTS STATE - Sidebar layout
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/20 to-indigo-50/20 py-8">
-      <main className="max-w-7xl mx-auto px-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6">
+        <button
+  type="button"
+  onClick={() => {
+    setShowPriceBreakdown(false);
+    setResults(null); // ✅ goes back to the big input screen
+  }}
+  className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-5 transition-all group font-semibold"
+>
+  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+  Back to big input
+</button>
         <div className="grid lg:grid-cols-12 gap-6">
           
           {/* LEFT SIDEBAR - Control Panel */}
@@ -315,10 +566,14 @@ export default function ProComparePage() {
                 <p className="text-slate-300 text-sm mb-6">4 chains monitored in your area</p>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
+                  <a 
+                    href="/compare/pro/history"
+                    className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-all cursor-pointer group"
+                  >
                     <p className="text-xs text-slate-400 mb-1">Comparisons</p>
-                    <p className="text-3xl font-black">47</p>
-                  </div>
+                    <p className="text-3xl font-black group-hover:scale-110 transition-transform">{comparisonCount}</p>
+                    <p className="text-xs text-slate-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">View history →</p>
+                  </a>
                   <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
                     <p className="text-xs text-slate-400 mb-1">Efficiency</p>
                     <p className="text-3xl font-black">94%</p>
@@ -372,17 +627,29 @@ export default function ProComparePage() {
                   <History className="w-5 h-5 text-slate-600" />
                   Recent Lists
                 </h3>
-                <button className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-xl transition-all">
+                <button 
+                  onClick={openCreateListModal}
+                  className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-xl transition-all"
+                >
                   <Plus className="w-5 h-5"/>
                 </button>
               </div>
               <div className="space-y-2">
-                {SAVED_LISTS.map((list) => (
+                {savedLists.map((list) => (
                   <button
                     key={list.id}
                     onClick={() => setInput(list.items)}
-                    className="group w-full flex items-center justify-between p-4 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-indigo-50 border border-transparent hover:border-emerald-200/50 transition-all cursor-pointer"
+                    className="group w-full flex items-center justify-between p-4 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-indigo-50 border border-transparent hover:border-emerald-200/50 transition-all cursor-pointer relative"
                   >
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => handleDeleteList(list.id, e)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all z-10"
+                      title="Delete list"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-all shadow-sm">
                         <ShoppingCart className="w-5 h-5 text-slate-600 group-hover:text-emerald-700" />
@@ -396,10 +663,10 @@ export default function ProComparePage() {
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
+  </div>
+</div>
 
-          {/* RIGHT CONTENT AREA */}
+{/* RIGHT CONTENT AREA */}
           <div className="lg:col-span-8 space-y-6">
             
             {/* Savings Hero */}
@@ -413,7 +680,7 @@ export default function ProComparePage() {
                     <Sparkles className="w-3 h-3" />
                     {selectedStrategy === 'cheapest' ? 'Maximum Savings' : selectedStrategy === 'one-stop' ? 'Most Convenient' : 'Balanced Approach'}
                   </span>
-                  <h1 className="text-6xl font-black text-slate-900 mb-3 tracking-tight">
+                  <h1 className="text-4xl sm:text-6xl font-black text-slate-900 mb-3 tracking-tight">
                     Save <span className="bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">${planTotalSavings.toFixed(2)}</span>
                   </h1>
                   <p className="text-slate-600 max-w-md leading-relaxed">
@@ -424,7 +691,7 @@ export default function ProComparePage() {
                       : 'Visit two stores for a good balance of savings and convenience.'}
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                   <button className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2">
                     <Download className="w-4 h-4" /> Export
                   </button>
@@ -542,7 +809,7 @@ export default function ProComparePage() {
                     </div>
 
                     {/* Items Grid */}
-                    <div className="grid md:grid-cols-2 gap-3 ml-16">
+                    <div className="grid md:grid-cols-2 gap-3 ml-0 sm:ml-16">
                       {stop.items.map((item: any, idx: number) => {
                         const displayPrice = stop.isOneStop ? item.priceAtStore : item.best.price;
                         const displaySavings = stop.isOneStop ? item.savingsAtStore : item.best.savings;
@@ -575,7 +842,7 @@ export default function ProComparePage() {
 
                     {/* Connector line to next stop */}
                     {storeIdx < (shoppingPlan?.length || 0) - 1 && (
-                      <div className="flex items-center gap-3 my-6 ml-6">
+                      <div className="flex items-center gap-3 my-6 ml-0 sm:ml-6">
                         <div className="w-0.5 h-8 bg-slate-200"></div>
                         <ChevronRight className="w-5 h-5 text-slate-400 rotate-90" />
                       </div>
@@ -642,7 +909,7 @@ export default function ProComparePage() {
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {item.allPrices.map((store: any, storeIdx: number) => (
                             <div 
                               key={storeIdx}

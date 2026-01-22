@@ -1,6 +1,22 @@
+"use client";
+
 import { Button } from "@/components/Button";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function HowItWorksPage() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+
+  // Load auth state from localStorage (same as Navigation)
+  useEffect(() => {
+    const savedLoginStatus = localStorage.getItem('dev_isLoggedIn') === 'true';
+    const savedProStatus = localStorage.getItem('dev_isPro') === 'true';
+    setIsLoggedIn(savedLoginStatus);
+    setIsPro(savedProStatus);
+  }, []);
+
   return (
     <main className="bg-cinematic">
       <section className="mx-auto max-w-6xl px-4 py-14">
@@ -20,9 +36,25 @@ export default function HowItWorksPage() {
           <p className="mt-2 text-slate-600">
             A 500g pack at $7.50 is $15/kg. A 1kg pack at $14.00 is cheaper—even if the sticker price looks higher.
           </p>
-          <div className="mt-5">
-            <Button href="/auth/signup" variant="primary">Start free (14 days)</Button>
-          </div>
+          
+          {/* Only show CTA if user is NOT logged in */}
+          {!isLoggedIn && (
+            <div className="mt-5">
+              <Button href="/auth/signup" variant="primary">Start free (14 days)</Button>
+            </div>
+          )}
+
+          {/* If logged in, show "Go to Dashboard" button instead */}
+          {isLoggedIn && (
+            <div className="mt-5">
+              <Button 
+                href={isPro ? "/compare/pro" : "/compare"} 
+                variant="primary"
+              >
+                {isPro ? "Go to Pro Dashboard" : "Start Comparing"}
+              </Button>
+            </div>
+          )}
         </div>
       </section>
     </main>
